@@ -238,7 +238,7 @@
   <div class="amount-setter" id="amountSetter">
     <label>💰 Amount:</label>
     <span class="rs">₹</span>
-    <input type="number" id="commonAmount" value="300" min="1" placeholder="300" oninput="renderMembers()" />
+    <input type="number" id="commonAmount" value="300" min="1" placeholder="300" oninput="onAmountChange()" />
   </div>
 
   <div class="add-member-row" id="addMemberRow">
@@ -514,6 +514,10 @@ function startListeners(){
       const a = snap.data();
       if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),a.amount||0); }
       if(el('adjRemark'))  el('adjRemark').value=a.remark||'';
+      // Load commonAmount from Firestore
+      if(a.commonAmount && el('commonAmount')){
+        el('commonAmount').value = a.commonAmount;
+      }
       updateTotals();
     }
   });
@@ -548,11 +552,17 @@ async function saveAdjToDb(){
   if(!isAdmin) return;
   const amt = parseFloat(el('adjAmount').value)||0;
   const rem = el('adjRemark').value||'';
+  const commonAmt = parseInt(el('commonAmount')?.value)||300;
   setSyncing();
-  await setDoc(doc(db,'chai','adjust'),{ amount:amt, remark:rem });
+  await setDoc(doc(db,'chai','adjust'),{ amount:amt, remark:rem, commonAmount:commonAmt });
   setSynced();
   updateTotals();
 }
+
+window.onAmountChange = function(){
+  renderMembers();
+  saveAdjToDb();
+};
 
 async function saveCarryToDb(){
   if(!isAdmin) return;
