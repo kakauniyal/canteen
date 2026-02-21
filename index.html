@@ -491,10 +491,16 @@ function startListeners(){
 
   // Members realtime
   if(unsubMembers) unsubMembers();
+  let lastMembersJson = '';
   unsubMembers = onSnapshot(doc(db,'chai','members'), snap=>{
     if(snap.exists()){
-      members = snap.data().list || [];
-      renderMembers();
+      const newJson = JSON.stringify(snap.data().list);
+      // Sirf re-render karo agar data actually change hua ho
+      if(newJson !== lastMembersJson){
+        lastMembersJson = newJson;
+        members = snap.data().list || [];
+        renderMembers();
+      }
     }
     el('loadingOverlay').classList.add('hidden');
     setSynced();
@@ -554,14 +560,32 @@ async function saveAdjToDb(){
   const rem = el('adjRemark').value||'';
   const commonAmt = parseInt(el('commonAmount')?.value)||300;
   setSyncing();
-  await setDoc(doc(db,'chai','adjust'),{ amount:amt, remark:rem, commonAmount:commonAmt });
+  // Preserve commonAmount field
+  const snap = await getDoc(doc(db,'chai','adjust'));
+  const existing = snap.exists() ? snap.data() : {};
+  await setDoc(doc(db,'chai','adjust'),{ ...existing, amount:amt, remark:rem, commonAmount:commonAmt });
   setSynced();
   updateTotals();
 }
 
+let amountSaveTimer = null;
 window.onAmountChange = function(){
   renderMembers();
-  saveAdjToDb();
+  // Debounce — 1 second baad save karo taaki har keypress pe save na ho
+  clearTimeout(amountSaveTimer);
+  amountSaveTimer = setTimeout(saveAmountToDb, 1000);
+};
+
+async function saveAmountToDb(){
+  if(!isAdmin) return;
+  const commonAmt = parseInt(el('commonAmount')?.value)||300;
+  // Sirf commonAmount update karo — adjust doc ke baaki fields preserve karo
+  const snap = await getDoc(doc(db,'chai','adjust'));
+  const existing = snap.exists() ? snap.data() : { amount:0, remark:'' };
+  existing.commonAmount = commonAmt;
+  setSyncing();
+  await setDoc(doc(db,'chai','adjust'), existing);
+  setSynced();
 };
 
 async function saveCarryToDb(){
