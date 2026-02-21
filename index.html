@@ -89,15 +89,18 @@
   .add-member-row button{padding:10px 16px;background:var(--chai);color:#fff;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;font-weight:700;cursor:pointer;}
 
   /* ADMIN COLORS */
-  /* Kakuniyal = Orange, Arvind = Green */
+  /* Kakuniyal = Orange, Arvind = Green, Bhushan = Blue */
   .by-kakuniyal{ border:2.5px solid #e67e22!important; box-shadow: 0 0 0 2px #e67e2233!important; }
   .by-arvind   { border:2.5px solid #27ae60!important; box-shadow: 0 0 0 2px #27ae6033!important; }
+  .by-bhushan  { border:2.5px solid #2980b9!important; box-shadow: 0 0 0 2px #2980b933!important; }
   .admin-tag{font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;}
   .tag-kakuniyal{background:#e67e2222;color:#e67e22;}
   .tag-arvind   {background:#27ae6022;color:#27ae60;}
+  .tag-bhushan  {background:#2980b922;color:#2980b9;}
   /* Kharcha row color */
   .exp-by-kakuniyal td{ border-left: 3px solid #e67e22!important; }
   .exp-by-arvind    td{ border-left: 3px solid #27ae60!important; }
+  .exp-by-bhushan   td{ border-left: 3px solid #2980b9!important; }
 
   /* MEMBER LIST */
   .members-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
@@ -308,11 +311,12 @@ import { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, getDocs }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG ──
-const ADMIN_EMAILS = ["kakuniyal@gmail.com", "arvindbhel88@gmail.com"];
+const ADMIN_EMAILS = ["kakuniyal@gmail.com", "arvindbhel88@gmail.com", "bhushanmehta08@gmail.com"];
 
 const ADMIN_CONFIG = {
-  "kakuniyal@gmail.com": { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", label:"Kakuniyal", color:"#e67e22" },
-  "arvindbhel88@gmail.com": { cssClass:"by-arvind", tag:"tag-arvind", label:"Arvind", color:"#27ae60" }
+  "kakuniyal@gmail.com":    { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", label:"Kakuniyal", color:"#e67e22" },
+  "arvindbhel88@gmail.com": { cssClass:"by-arvind",    tag:"tag-arvind",    label:"Arvind",    color:"#27ae60" },
+  "bhushanmehta08@gmail.com": { cssClass:"by-bhushan", tag:"tag-bhushan",   label:"Bhushan",   color:"#2980b9" }
 };
 
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()] || null; }
