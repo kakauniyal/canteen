@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>☕ Chai Group Manager</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c17f3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChaiGroup">
+<!-- Apple touch icons (add sizes as needed) -->
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -74,6 +87,17 @@
   .add-member-row input{flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:var(--card);color:var(--brown);outline:none;transition:border-color .2s;}
   .add-member-row input:focus{border-color:var(--chai);}
   .add-member-row button{padding:10px 16px;background:var(--chai);color:#fff;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;font-weight:700;cursor:pointer;}
+
+  /* ADMIN COLORS */
+  /* Kakuniyal = Orange, Arvind = Green */
+  .by-kakuniyal{ border:2.5px solid #e67e22!important; box-shadow: 0 0 0 2px #e67e2233!important; }
+  .by-arvind   { border:2.5px solid #27ae60!important; box-shadow: 0 0 0 2px #27ae6033!important; }
+  .admin-tag{font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;}
+  .tag-kakuniyal{background:#e67e2222;color:#e67e22;}
+  .tag-arvind   {background:#27ae6022;color:#27ae60;}
+  /* Kharcha row color */
+  .exp-by-kakuniyal td{ border-left: 3px solid #e67e22!important; }
+  .exp-by-arvind    td{ border-left: 3px solid #27ae60!important; }
 
   /* MEMBER LIST */
   .members-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
@@ -285,6 +309,13 @@ import { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, getDocs }
 // ── CONFIG ──
 const ADMIN_EMAILS = ["kakuniyal@gmail.com", "arvindbhel88@gmail.com"];
 
+// Admin color config
+const ADMIN_CONFIG = {
+  "kakuniyal@gmail.com": { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", label:"Kakuniyal", color:"#e67e22" },
+  "arvindbhel88@gmail.com": { cssClass:"by-arvind",    tag:"tag-arvind",    label:"Arvind",    color:"#27ae60" }
+};
+function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()] || null; }
+
 const firebaseConfig = {
   apiKey: "AIzaSyBZZuSnDc7nxcx-LCbxPw9ta4sqSiChYQE",
   authDomain: "canteen-105f0.firebaseapp.com",
@@ -468,8 +499,8 @@ function getBase(){ return parseInt(el('commonAmount')?.value)||300; }
 window.tickMember = async function(i){
   if(!isAdmin) return;
   const amt=getBase();
-  if(members[i].status==='paid'){ members[i].paid=0; members[i].status=null; }
-  else{ members[i].status='paid'; members[i].paid=amt; }
+  if(members[i].status==='paid'){ members[i].paid=0; members[i].status=null; members[i].updatedBy=null; }
+  else{ members[i].status='paid'; members[i].paid=amt; members[i].updatedBy=auth.currentUser?.email?.toLowerCase(); }
   await saveMembers();
 };
 
@@ -477,6 +508,7 @@ window.crossMember = async function(i){
   if(!isAdmin) return;
   members[i].status = members[i].status==='unpaid' ? null : 'unpaid';
   members[i].paid=0;
+  members[i].updatedBy = members[i].status==='unpaid' ? auth.currentUser?.email?.toLowerCase() : null;
   await saveMembers();
 };
 
@@ -505,10 +537,12 @@ function renderMembers(){
   list.innerHTML='';
   const base=getBase();
   members.forEach((m,i)=>{
+    const cfg = m.updatedBy ? getAdminConfig(m.updatedBy) : null;
     const row=document.createElement('div');
-    row.className=`member-row${m.status==='paid'?' paid':m.status==='unpaid'?' unpaid':''}`;
+    row.className=`member-row${m.status==='paid'?' paid':m.status==='unpaid'?' unpaid':''}${cfg?' '+cfg.cssClass:''}`;
     const initial=m.name.replace('Mr. ','').charAt(0).toUpperCase();
-    const sub=m.status==='paid'?`✓ ₹${m.paid} diya`:m.status==='unpaid'?'✗ Nahi diya':`Expected ₹${base}`;
+    const tagHtml = cfg ? `<span class="admin-tag ${cfg.tag}">${cfg.label}</span>` : '';
+    const sub=m.status==='paid'?`✓ ₹${m.paid} diya ${tagHtml}`:m.status==='unpaid'?`✗ Nahi diya ${tagHtml}`:`Expected ₹${base}`;
     row.innerHTML=`
       <span class="member-no">${i+1}</span>
       <div class="member-avatar">${initial}</div>
@@ -556,10 +590,13 @@ function renderExpenses(){
     const data=(expenses[key]||{})[d]||{remarks:'',amount:''};
     const amt=parseFloat(data.amount)||0;
     total+=amt;
+    const cfg = data.updatedBy ? getAdminConfig(data.updatedBy) : null;
     const tr=document.createElement('tr');
+    if(cfg) tr.className=`exp-by-${cfg.label.toLowerCase()}`;
     const rdisabled=isAdmin?'':'disabled';
+    const tagHtml = cfg ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${cfg.color};margin-right:4px;vertical-align:middle;"></span>` : '';
     tr.innerHTML=`
-      <td>${d} ${MONTHS[m].slice(0,3)}</td>
+      <td>${tagHtml}${d} ${MONTHS[m].slice(0,3)}</td>
       <td><input class="remarks-input" type="text" placeholder="kya aaya?" value="${data.remarks}" ${rdisabled}
         onchange="saveExpense('${key}',${d},'remarks',this.value)"/></td>
       <td><input class="amount-input" type="number" placeholder="0" value="${data.amount||''}" ${rdisabled}
@@ -581,6 +618,7 @@ window.saveExpense = async function(key,day,field,value){
   if(!expenses[key]) expenses[key]={};
   if(!expenses[key][day]) expenses[key][day]={remarks:'',amount:''};
   expenses[key][day][field]=value;
+  expenses[key][day].updatedBy = auth.currentUser?.email?.toLowerCase();
   await saveExpenses();
   if(field==='amount') calcTotal();
 };
@@ -649,6 +687,39 @@ function init(){
 }
 
 document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<!-- ✅ PWA: Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        console.log('☕ SW registered:', reg.scope);
+
+        // Check for new version
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              const toast = document.createElement('div');
+              toast.style.cssText = [
+                'position:fixed','bottom:16px','left:50%','transform:translateX(-50%)',
+                'background:#3d1e0a','color:#fff','padding:10px 20px','border-radius:20px',
+                "font-family:'Baloo 2',sans-serif",'font-size:0.85rem','font-weight:700',
+                'z-index:9999','box-shadow:0 4px 20px rgba(0,0,0,0.3)','cursor:pointer'
+              ].join(';');
+              toast.textContent = '🔄 Naya update aaya! Tap karo refresh karne ke liye.';
+              toast.onclick = () => window.location.reload();
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 6000);
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
 </script>
 </body>
 </html>
