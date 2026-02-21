@@ -283,7 +283,7 @@ import { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, getDocs }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG ──
-const ADMIN_EMAIL = "Kakuniyal@gmail.com"; // change karo agar alag email chahiye
+const ADMIN_EMAILS = ["kakuniyal@gmail.com", "arvindbhel88@gmail.com"];
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZZuSnDc7nxcx-LCbxPw9ta4sqSiChYQE",
@@ -321,7 +321,7 @@ window.adminLogin = async()=>{
 window.adminLogout = async()=>{ await signOut(auth); };
 
 onAuthStateChanged(auth, user=>{
-  if(user && user.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()){
+  if(user && ADMIN_EMAILS.includes(user.email.toLowerCase())){
     isAdmin = true;
     el('adminBadge').style.display='inline-block';
     el('loginBtn').style.display='none';
