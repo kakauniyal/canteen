@@ -405,6 +405,8 @@ let members = [];
 let expenses = {};
 let unsubMembers = null;
 let unsubExpenses = null;
+let currentAdj = 0;       // Global adj value - always in sync with Firestore
+let currentCommonAmt = 300; // Global common amount
 
 function el(id){ return document.getElementById(id); }
 
@@ -508,9 +510,16 @@ function startListeners(){
 
   // Expenses realtime
   if(unsubExpenses) unsubExpenses();
+  let lastExpensesJson = '';
   unsubExpenses = onSnapshot(doc(db,'chai','expenses'), snap=>{
-    if(snap.exists()) expenses = snap.data();
-    renderExpenses();
+    if(snap.exists()){
+      const newJson = JSON.stringify(snap.data());
+      if(newJson !== lastExpensesJson){
+        lastExpensesJson = newJson;
+        expenses = snap.data();
+        renderExpenses();
+      }
+    }
     setSynced();
   });
 
@@ -518,12 +527,13 @@ function startListeners(){
   onSnapshot(doc(db,'chai','adjust'), snap=>{
     if(snap.exists()){
       const a = snap.data();
-      if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),a.amount||0); }
+      // Update global variables FIRST
+      currentAdj = parseFloat(a.amount)||0;
+      currentCommonAmt = parseInt(a.commonAmount)||300;
+      // Then update UI inputs
+      if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),currentAdj); }
       if(el('adjRemark'))  el('adjRemark').value=a.remark||'';
-      // Load commonAmount from Firestore
-      if(a.commonAmount && el('commonAmount')){
-        el('commonAmount').value = a.commonAmount;
-      }
+      if(el('commonAmount')) el('commonAmount').value = currentCommonAmt;
       updateTotals();
     }
   });
@@ -570,6 +580,7 @@ async function saveAdjToDb(){
 
 let amountSaveTimer = null;
 window.onAmountChange = function(){
+  currentCommonAmt = parseInt(el('commonAmount')?.value)||300;
   renderMembers();
   // Debounce — 1 second baad save karo taaki har keypress pe save na ho
   clearTimeout(amountSaveTimer);
@@ -615,10 +626,10 @@ window.switchTab = function(tab){
 };
 
 // ── ADJUST ──
-window.onAdjChange = function(inp){ styleAdj(inp, parseFloat(inp.value)||0); saveAdjToDb(); };
+window.onAdjChange = function(inp){ currentAdj = parseFloat(inp.value)||0; styleAdj(inp, currentAdj); saveAdjToDb(); };
 window.saveAdj = saveAdjToDb;
 function styleAdj(inp,v){ inp.className='adj-inp'+(v>0?' plus':v<0?' minus':''); }
-function getAdj(){ return parseFloat(el('adjAmount')?.value)||0; }
+function getAdj(){ return currentAdj; }
 
 // ── MEMBERS ──
 window.addMember = async function(){
@@ -630,7 +641,7 @@ window.addMember = async function(){
   inp.value='';
 };
 
-function getBase(){ return parseInt(el('commonAmount')?.value)||300; }
+function getBase(){ return currentCommonAmt; }
 
 window.tickMember = async function(i){
   if(!isAdmin) return;
@@ -737,7 +748,7 @@ function renderExpenses(){
       <td><input class="remarks-input" type="text" placeholder="kya aaya?" value="${data.remarks}" ${rdisabled}
         onchange="saveExpense('${key}',${d},'remarks',this.value)"/></td>
       <td><input class="amount-input" type="number" placeholder="0" value="${data.amount||''}" ${rdisabled}
-        onchange="saveExpense('${key}',${d},'amount',this.value)" oninput="calcTotal()"/></td>`;
+        onchange="saveExpense('${key}',${d},'amount',this.value)"/></td>`;
     body.appendChild(tr);
   }
   // total row right after last date
@@ -761,8 +772,14 @@ window.saveExpense = async function(key,day,field,value){
 };
 
 function calcTotal(){
-  let total=0;
-  document.querySelectorAll('.amount-input').forEach(inp=>{ total+=parseFloat(inp.value)||0; });
+  // expenses object se calculate karo - DOM inputs pe depend nahi
+  const key = getKey();
+  let total = 0;
+  if(expenses[key]){
+    Object.values(expenses[key]).forEach(d=>{
+      total += parseFloat(d.amount)||0;
+    });
+  }
   if(el('totalKharcha')) el('totalKharcha').textContent=total;
   if(el('footerTotal'))  el('footerTotal').textContent='₹'+total;
   updateBalance();
