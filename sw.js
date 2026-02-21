@@ -1,21 +1,20 @@
 // ☕ Chai Group Manager — Service Worker
-const CACHE_NAME = 'chai-group-v1';
+const CACHE_NAME = 'chai-group-v2';
+const BASE = '/canteen';
 
-// Files to cache for offline use
-// NOTE: Firebase JS (from gstatic) is fetched live — we only cache the shell
 const SHELL_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/icons/icon-192.png',
+  BASE + '/icons/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&display=swap'
 ];
 
-// ── INSTALL: cache shell assets ──
+// ── INSTALL ──
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] Caching app shell');
-      // Cache each individually so one failure doesn't block all
       return Promise.allSettled(
         SHELL_ASSETS.map(url =>
           cache.add(url).catch(err => console.warn('[SW] Could not cache:', url, err))
@@ -25,27 +24,22 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── ACTIVATE: delete old caches ──
+// ── ACTIVATE ──
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => {
-            console.log('[SW] Deleting old cache:', key);
-            return caches.delete(key);
-          })
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       )
     ).then(() => self.clients.claim())
   );
 });
 
-// ── FETCH: Network-first for Firebase, Cache-first for shell ──
+// ── FETCH ──
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
-  // Always go network for Firebase/Google APIs (realtime data)
+  // Firebase — always network
   if (
     url.includes('firestore.googleapis.com') ||
     url.includes('firebase') ||
@@ -56,14 +50,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For Google Fonts — cache then network update
+  // Fonts — cache first
   if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
     event.respondWith(
       caches.open(CACHE_NAME).then(cache =>
         cache.match(event.request).then(cached => {
-          const fetchPromise = fetch(event.request).then(response => {
-            cache.put(event.request, response.clone());
-            return response;
+          const fetchPromise = fetch(event.request).then(res => {
+            cache.put(event.request, res.clone());
+            return res;
           });
           return cached || fetchPromise;
         })
@@ -72,35 +66,25 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For everything else — Cache first, then network fallback
+  // Shell — cache first, network fallback
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // Only cache successful responses
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
-        }
+        if (!response || response.status !== 200 || response.type === 'opaque') return response;
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
       }).catch(() => {
-        // Offline fallback — return index.html for navigation requests
         if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
+          return caches.match(BASE + '/index.html');
         }
       });
     })
   );
 });
 
-// ── Push notifications (future use) ──
-self.addEventListener('push', event => {
-  if (!event.data) return;
-  const data = event.data.json();
-  self.registration.showNotification(data.title || '☕ Chai Group', {
-    body: data.body || '',
-    icon: './icons/icon-192.png',
-    badge: './icons/icon-72.png'
-  });
+// ── Update toast ──
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });
