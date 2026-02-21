@@ -218,6 +218,7 @@
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('collection')">💰 Collection</button>
   <button class="tab-btn" onclick="switchTab('kharcha')">📋 Kharcha</button>
+  <button class="tab-btn" id="adminTabBtn" onclick="switchTab('adminpanel')" style="display:none">⚙️ Admins</button>
 </div>
 
 <!-- PAGE 1 -->
@@ -298,6 +299,33 @@
   </div>
 </div>
 
+<!-- PAGE 3: ADMIN PANEL (Super Admin only) -->
+<div id="page-adminpanel" class="page">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow);">
+    <div style="font-size:0.8rem;opacity:.8;letter-spacing:.5px;">SUPER ADMIN PANEL</div>
+    <div style="font-size:1.6rem;font-weight:800;margin-top:4px;">👑 Admin Management</div>
+  </div>
+
+  <div style="background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;">
+    <div style="font-weight:700;font-size:0.9rem;color:var(--chai-dark);margin-bottom:10px;">➕ Naya Admin Add Karo</div>
+    <div style="display:flex;gap:8px;">
+      <input type="email" id="newAdminEmail" placeholder="email@gmail.com"
+        style="flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.88rem;background:var(--cream);color:var(--brown);outline:none;"
+        onkeydown="if(event.key==='Enter') window.addAdmin()" />
+      <button onclick="window.addAdmin()"
+        style="padding:10px 16px;background:var(--chai);color:#fff;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;font-weight:700;cursor:pointer;">
+        + Add
+      </button>
+    </div>
+    <div id="adminAddMsg" style="font-size:0.78rem;margin-top:8px;font-weight:600;"></div>
+  </div>
+
+  <div style="background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);">
+    <div style="font-weight:700;font-size:0.9rem;color:var(--chai-dark);margin-bottom:10px;">👥 Current Admins</div>
+    <div id="adminsList"></div>
+  </div>
+</div>
+
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -307,13 +335,54 @@ import { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, getDocs }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG ──
-const ADMIN_EMAILS = ["kakuniyal@gmail.com", "arvindbhel88@gmail.com"];
+const SUPER_ADMIN = "kakuniyal@gmail.com";
 
-// Admin color config
-const ADMIN_CONFIG = {
-  "kakuniyal@gmail.com": { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", label:"Kakuniyal", color:"#e67e22" },
-  "arvindbhel88@gmail.com": { cssClass:"by-arvind",    tag:"tag-arvind",    label:"Arvind",    color:"#27ae60" }
-};
+// Color palette for dynamic admins
+const COLOR_PALETTE = [
+  { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", color:"#e67e22" },
+  { cssClass:"by-arvind",    tag:"tag-arvind",    color:"#27ae60" },
+  { cssClass:"by-admin3",    tag:"tag-admin3",    color:"#8e44ad" },
+  { cssClass:"by-admin4",    tag:"tag-admin4",    color:"#2980b9" },
+  { cssClass:"by-admin5",    tag:"tag-admin5",    color:"#c0392b" },
+];
+
+// Dynamic admin list from Firestore
+let ADMIN_EMAILS = [];
+let ADMIN_CONFIG = {};
+
+function buildAdminConfig(adminList){
+  ADMIN_EMAILS = adminList.map(a => a.email.toLowerCase());
+  ADMIN_CONFIG = {};
+  adminList.forEach((a, i) => {
+    const palette = COLOR_PALETTE[i % COLOR_PALETTE.length];
+    const label = a.email.split('@')[0];
+    ADMIN_CONFIG[a.email.toLowerCase()] = {
+      cssClass: palette.cssClass,
+      tag: palette.tag,
+      label: label.charAt(0).toUpperCase() + label.slice(1),
+      color: palette.color
+    };
+  });
+  // Inject CSS for dynamic colors
+  injectAdminCSS(adminList);
+}
+
+function injectAdminCSS(adminList){
+  let old = document.getElementById('dynamic-admin-css');
+  if(old) old.remove();
+  let css = '';
+  adminList.forEach((a, i) => {
+    const p = COLOR_PALETTE[i % COLOR_PALETTE.length];
+    css += `.${p.cssClass}{ border:2.5px solid ${p.color}!important; box-shadow:0 0 0 2px ${p.color}33!important; }`;
+    css += `.${p.tag}{ background:${p.color}22; color:${p.color}; }`;
+    css += `.exp-by-${p.cssClass.replace('by-','')} td{ border-left:3px solid ${p.color}!important; }`;
+  });
+  const style = document.createElement('style');
+  style.id = 'dynamic-admin-css';
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()] || null; }
 
 const firebaseConfig = {
@@ -352,12 +421,21 @@ window.adminLogin = async()=>{
 window.adminLogout = async()=>{ await signOut(auth); };
 
 onAuthStateChanged(auth, user=>{
+  // Auth state changes — re-check admin status against live list
+  checkAdminStatus(user);
+});
+
+function checkAdminStatus(user){
   if(user && ADMIN_EMAILS.includes(user.email.toLowerCase())){
     isAdmin = true;
+    const isSuperAdmin = user.email.toLowerCase() === SUPER_ADMIN;
     el('adminBadge').style.display='inline-block';
+    el('adminBadge').textContent = isSuperAdmin ? '👑 Super Admin' : '✅ Admin';
     el('loginBtn').style.display='none';
     el('logoutBtn').style.display='block';
     el('viewerBanner').style.display='none';
+    // Show Admin Panel tab only for Super Admin
+    if(el('adminTabBtn')) el('adminTabBtn').style.display = isSuperAdmin ? 'block' : 'none';
     enableAdminUI();
   } else {
     isAdmin = false;
@@ -365,9 +443,10 @@ onAuthStateChanged(auth, user=>{
     el('logoutBtn').style.display='none';
     el('viewerBanner').style.display='block';
     el('loginBtn').style.display='block';
+    if(el('adminTabBtn')) el('adminTabBtn').style.display='none';
     disableAdminUI();
   }
-});
+}
 
 function enableAdminUI(){
   el('addMemberRow').style.display='flex';
@@ -390,6 +469,26 @@ function disableAdminUI(){
 
 // ── FIRESTORE LISTENERS ──
 function startListeners(){
+  // Admins realtime — load first so auth check works
+  onSnapshot(doc(db,'chai','admins'), snap=>{
+    let adminList = [];
+    if(snap.exists()){
+      adminList = snap.data().list || [];
+    }
+    // If no admins doc yet, use defaults
+    if(adminList.length === 0){
+      adminList = [
+        { email: "kakuniyal@gmail.com" },
+        { email: "arvindbhel88@gmail.com" }
+      ];
+    }
+    buildAdminConfig(adminList);
+    // Re-check current user's admin status
+    const user = auth.currentUser;
+    checkAdminStatus(user);
+    renderAdminsList(adminList);
+  });
+
   // Members realtime
   if(unsubMembers) unsubMembers();
   unsubMembers = onSnapshot(doc(db,'chai','members'), snap=>{
@@ -470,11 +569,14 @@ async function saveCarryToDb(){
 
 // ── TABS ──
 window.switchTab = function(tab){
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&tab==='collection')||(i===1&&tab==='kharcha')));
-  el('page-collection').classList.toggle('active', tab==='collection');
-  el('page-kharcha').classList.toggle('active', tab==='kharcha');
-  el('page-collection').style.display='';
-  el('page-kharcha').style.display='';
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.remove('active');
+    if(b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+tab+"'")) b.classList.add('active');
+  });
+  ['collection','kharcha','adminpanel'].forEach(p=>{
+    const pg = el('page-'+p);
+    if(pg){ pg.classList.toggle('active', tab===p); pg.style.display=''; }
+  });
   if(tab==='kharcha') updateBalance();
 };
 
@@ -499,8 +601,9 @@ function getBase(){ return parseInt(el('commonAmount')?.value)||300; }
 window.tickMember = async function(i){
   if(!isAdmin) return;
   const amt=getBase();
-  if(members[i].status==='paid'){ members[i].paid=0; members[i].status=null; members[i].updatedBy=null; }
-  else{ members[i].status='paid'; members[i].paid=amt; members[i].updatedBy=auth.currentUser?.email?.toLowerCase(); }
+  const currentUser = auth.currentUser?.email?.toLowerCase();
+  if(members[i].status==='paid'){ members[i].paid=0; members[i].status=null; members[i].updatedBy=currentUser; }
+  else{ members[i].status='paid'; members[i].paid=amt; members[i].updatedBy=currentUser; }
   await saveMembers();
 };
 
@@ -508,7 +611,7 @@ window.crossMember = async function(i){
   if(!isAdmin) return;
   members[i].status = members[i].status==='unpaid' ? null : 'unpaid';
   members[i].paid=0;
-  members[i].updatedBy = members[i].status==='unpaid' ? auth.currentUser?.email?.toLowerCase() : null;
+  members[i].updatedBy = auth.currentUser?.email?.toLowerCase();
   await saveMembers();
 };
 
@@ -674,6 +777,63 @@ window.printAll = function(){
   el('page-collection').style.display='';
   el('page-kharcha').style.display='';
 };
+
+// ── ADMIN MANAGEMENT ──
+window.addAdmin = async function(){
+  if(auth.currentUser?.email?.toLowerCase() !== SUPER_ADMIN) return;
+  const inp = el('newAdminEmail');
+  const email = inp.value.trim().toLowerCase();
+  const msg = el('adminAddMsg');
+  if(!email || !email.includes('@')){ msg.style.color='var(--red)'; msg.textContent='❌ Sahi email daalo'; return; }
+  if(ADMIN_EMAILS.includes(email)){ msg.style.color='var(--red)'; msg.textContent='⚠️ Yeh already admin hai'; return; }
+
+  const snap = await getDoc(doc(db,'chai','admins'));
+  const list = snap.exists() ? (snap.data().list || []) : [{ email: SUPER_ADMIN }];
+  list.push({ email });
+  await setDoc(doc(db,'chai','admins'), { list });
+  inp.value='';
+  msg.style.color='var(--green)';
+  msg.textContent='✅ Admin add ho gaya!';
+  setTimeout(()=>msg.textContent='', 3000);
+};
+
+window.removeAdmin = async function(email){
+  if(auth.currentUser?.email?.toLowerCase() !== SUPER_ADMIN) return;
+  if(email === SUPER_ADMIN){ alert('Super Admin ko remove nahi kar sakte!'); return; }
+  if(!confirm(`"${email}" ko admin se hataana hai?`)) return;
+  const snap = await getDoc(doc(db,'chai','admins'));
+  let list = snap.exists() ? (snap.data().list || []) : [];
+  list = list.filter(a => a.email.toLowerCase() !== email.toLowerCase());
+  await setDoc(doc(db,'chai','admins'), { list });
+};
+
+function renderAdminsList(adminList){
+  const container = el('adminsList');
+  if(!container) return;
+  const isSuperAdmin = auth.currentUser?.email?.toLowerCase() === SUPER_ADMIN;
+  container.innerHTML = '';
+  adminList.forEach((a, i) => {
+    const cfg = getAdminConfig(a.email) || { color:'#999', label: a.email.split('@')[0] };
+    const isSuper = a.email.toLowerCase() === SUPER_ADMIN;
+    const div = document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--steam);';
+    div.innerHTML=`
+      <div style="width:36px;height:36px;border-radius:50%;background:${cfg.color}22;border:2px solid ${cfg.color};display:flex;align-items:center;justify-content:center;font-weight:800;color:${cfg.color};font-size:1rem;">
+        ${cfg.label.charAt(0).toUpperCase()}
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:0.9rem;">${cfg.label}</div>
+        <div style="font-size:0.75rem;opacity:.6;">${a.email} ${isSuper?'👑':''}</div>
+      </div>
+      <div style="width:10px;height:10px;border-radius:50%;background:${cfg.color};"></div>
+      ${(isSuperAdmin && !isSuper) ? `<button onclick="window.removeAdmin('${a.email}')"
+        style="padding:4px 10px;background:#c0392b11;color:var(--red);border:1px solid var(--red);border-radius:8px;font-family:'Baloo 2',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;">
+        Hataao
+      </button>` : ''}
+    `;
+    container.appendChild(div);
+  });
+}
 
 // ── INIT ──
 function init(){
