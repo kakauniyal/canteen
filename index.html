@@ -231,6 +231,12 @@
     <div class="label" id="memberCountLabel">0/0 ne diya</div>
   </div>
 
+  <div class="month-selector" style="margin-bottom:10px;">
+    <label style="font-weight:600;font-size:.9rem">Mahina:</label>
+    <select id="colMonthSelect" onchange="onColMonthChange()"></select>
+    <select id="colYearSelect" onchange="onColMonthChange()"></select>
+  </div>
+
   <div class="adjust-box" id="adjustBox">
     <label>⚡ Adjust:</label>
     <input class="adj-inp" type="number" id="adjAmount" placeholder="+/-0" oninput="onAdjChange(this)" />
@@ -337,12 +343,41 @@ const db   = getFirestore(app);
 // ── STATE ──
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 let isAdmin = false;
-let members = [];
+let members = [];        // Base member list (names only)
+let membersData = {};    // Month-wise status: { "2025-2": [{name,paid,status,updatedBy},...] }
 let expenses = {};
 let unsubMembers = null;
 let unsubExpenses = null;
-let currentAdj = 0;       // Global adj value - always in sync with Firestore
-let currentCommonAmt = 300; // Global common amount
+let unsubMembersData = null;
+let currentAdj = 0;
+let currentCommonAmt = 300;
+
+function getColKey(){
+  const m = el('colMonthSelect')?.value ?? new Date().getMonth();
+  const y = el('colYearSelect')?.value ?? new Date().getFullYear();
+  return `${y}-${m}`;
+}
+
+function getCurrentMonthMembers(){
+  const key = getColKey();
+  if(!membersData[key]){
+    // Initialize from base members list with empty status
+    membersData[key] = members.map(m => ({
+      name: m.name,
+      paid: 0,
+      status: null,
+      updatedBy: null
+    }));
+  }
+  // Sync names from base members (in case names were edited)
+  members.forEach((m, i) => {
+    if(membersData[key][i]) membersData[key][i].name = m.name;
+    else membersData[key][i] = { name: m.name, paid: 0, status: null, updatedBy: null };
+  });
+  // Remove extra entries if members were deleted
+  membersData[key] = membersData[key].slice(0, members.length);
+  return membersData[key];
+}
 
 function el(id){ return document.getElementById(id); }
 
@@ -403,13 +438,12 @@ function disableAdminUI(){
 
 // ── FIRESTORE LISTENERS ──
 function startListeners(){
-  // Members realtime
+  // Base members list (names)
   if(unsubMembers) unsubMembers();
   let lastMembersJson = '';
   unsubMembers = onSnapshot(doc(db,'chai','members'), snap=>{
     if(snap.exists()){
       const newJson = JSON.stringify(snap.data().list);
-      // Sirf re-render karo agar data actually change hua ho
       if(newJson !== lastMembersJson){
         lastMembersJson = newJson;
         members = snap.data().list || [];
@@ -417,6 +451,21 @@ function startListeners(){
       }
     }
     el('loadingOverlay').classList.add('hidden');
+    setSynced();
+  });
+
+  // Month-wise collection data
+  if(unsubMembersData) unsubMembersData();
+  let lastMembersDataJson = '';
+  unsubMembersData = onSnapshot(doc(db,'chai','membersData'), snap=>{
+    if(snap.exists()){
+      const newJson = JSON.stringify(snap.data());
+      if(newJson !== lastMembersDataJson){
+        lastMembersDataJson = newJson;
+        membersData = snap.data();
+        renderMembers();
+      }
+    }
     setSynced();
   });
 
@@ -465,7 +514,16 @@ function startListeners(){
 async function saveMembers(){
   if(!isAdmin) return;
   setSyncing();
-  await setDoc(doc(db,'chai','members'),{ list: members });
+  // Save base list (names only - strip status)
+  const baseList = members.map(m => ({ name: m.name }));
+  await setDoc(doc(db,'chai','members'),{ list: baseList });
+  setSynced();
+}
+
+async function saveMembersData(){
+  if(!isAdmin) return;
+  setSyncing();
+  await setDoc(doc(db,'chai','membersData'), membersData);
   setSynced();
 }
 
@@ -545,7 +603,7 @@ window.addMember = async function(){
   if(!isAdmin) return;
   const inp=el('newMemberName'), name=inp.value.trim().toUpperCase();
   if(!name) return;
-  members.push({name:'Mr. '+name, paid:0, status:null});
+  members.push({name:'Mr. '+name});
   await saveMembers();
   inp.value='';
 };
@@ -556,17 +614,21 @@ window.tickMember = async function(i){
   if(!isAdmin) return;
   const amt=getBase();
   const currentUser = auth.currentUser?.email?.toLowerCase();
-  if(members[i].status==='paid'){ members[i].paid=0; members[i].status=null; members[i].updatedBy=currentUser; }
-  else{ members[i].status='paid'; members[i].paid=amt; members[i].updatedBy=currentUser; }
-  await saveMembers();
+  const mList = getCurrentMonthMembers();
+  if(mList[i].status==='paid'){ mList[i].paid=0; mList[i].status=null; mList[i].updatedBy=currentUser; }
+  else{ mList[i].status='paid'; mList[i].paid=amt; mList[i].updatedBy=currentUser; }
+  membersData[getColKey()] = mList;
+  await saveMembersData();
 };
 
 window.crossMember = async function(i){
   if(!isAdmin) return;
-  members[i].status = members[i].status==='unpaid' ? null : 'unpaid';
-  members[i].paid=0;
-  members[i].updatedBy = auth.currentUser?.email?.toLowerCase();
-  await saveMembers();
+  const mList = getCurrentMonthMembers();
+  mList[i].status = mList[i].status==='unpaid' ? null : 'unpaid';
+  mList[i].paid=0;
+  mList[i].updatedBy = auth.currentUser?.email?.toLowerCase();
+  membersData[getColKey()] = mList;
+  await saveMembersData();
 };
 
 window.startEdit = function(i){
@@ -584,8 +646,15 @@ window.saveEdit = async function(i){
   const inp=el('editInp_'+i);
   if(!inp) return;
   const newName=inp.value.trim().toUpperCase();
-  if(newName) members[i].name=newName;
+  if(newName){
+    members[i].name=newName;
+    // Update name in all months data too
+    Object.keys(membersData).forEach(key=>{
+      if(membersData[key][i]) membersData[key][i].name = newName;
+    });
+  }
   await saveMembers();
+  await saveMembersData();
 };
 
 function renderMembers(){
@@ -593,11 +662,12 @@ function renderMembers(){
   if(!list) return;
   list.innerHTML='';
   const base=getBase();
-  members.forEach((m,i)=>{
+  const mList = getCurrentMonthMembers();
+  mList.forEach((m,i)=>{
     const cfg = m.updatedBy ? getAdminConfig(m.updatedBy) : null;
     const row=document.createElement('div');
     row.className=`member-row${m.status==='paid'?' paid':m.status==='unpaid'?' unpaid':''}${cfg?' '+cfg.cssClass:''}`;
-    const initial=m.name.replace('Mr. ','').charAt(0).toUpperCase();
+    const initial=(m.name||'?').replace('Mr. ','').charAt(0).toUpperCase();
     const tagHtml = cfg ? `<span class="admin-tag ${cfg.tag}">${cfg.label}</span>` : '';
     const sub=m.status==='paid'?`✓ ₹${m.paid} diya ${tagHtml}`:m.status==='unpaid'?`✗ Nahi diya ${tagHtml}`:`Expected ₹${base}`;
     row.innerHTML=`
@@ -617,11 +687,12 @@ function renderMembers(){
 }
 
 function updateTotals(){
-  const collected=members.reduce((s,m)=>s+m.paid,0);
+  const mList = getCurrentMonthMembers();
+  const collected=mList.reduce((s,m)=>s+(m.paid||0),0);
   const adj=getAdj();
   if(el('totalCollection')) el('totalCollection').textContent=collected+adj;
-  const paidCount=members.filter(m=>m.status==='paid').length;
-  if(el('memberCountLabel')) el('memberCountLabel').textContent=`${paidCount}/${members.length} ne diya`;
+  const paidCount=mList.filter(m=>m.status==='paid').length;
+  if(el('memberCountLabel')) el('memberCountLabel').textContent=`${paidCount}/${mList.length} ne diya`;
   updateBalance();
 }
 
@@ -715,7 +786,8 @@ function loadCarryForMonth(){
 
 // ── BALANCE ──
 function updateBalance(){
-  const collected=members.reduce((s,m)=>s+m.paid,0);
+  const mList = getCurrentMonthMembers();
+  const collected=mList.reduce((s,m)=>s+(m.paid||0),0);
   const adj=getAdj();
   const collect=collected+adj;
   const kharcha=parseFloat(el('totalKharcha')?.textContent)||0;
@@ -738,13 +810,30 @@ window.printAll = function(){
   el('page-kharcha').style.display='';
 };
 
+// ── COLLECTION MONTH CHANGE ──
+window.onColMonthChange = function(){
+  renderMembers();
+  updateTotals();
+};
+
 // ── INIT ──
 function init(){
   const ms=el('monthSelect'), ys=el('yearSelect');
-  MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; ms.appendChild(o); });
+  const cms=el('colMonthSelect'), cys=el('colYearSelect');
   const yr=new Date().getFullYear();
-  for(let y=yr-1;y<=yr+1;y++){ const o=document.createElement('option'); o.value=y; o.textContent=y; ys.appendChild(o); }
-  ms.value=new Date().getMonth(); ys.value=yr;
+  const curMonth=new Date().getMonth();
+
+  MONTHS.forEach((m,i)=>{
+    const o=document.createElement('option'); o.value=i; o.textContent=m; ms.appendChild(o);
+    const o2=document.createElement('option'); o2.value=i; o2.textContent=m; cms.appendChild(o2);
+  });
+  for(let y=yr-1;y<=yr+1;y++){
+    const o=document.createElement('option'); o.value=y; o.textContent=y; ys.appendChild(o);
+    const o2=document.createElement('option'); o2.value=y; o2.textContent=y; cys.appendChild(o2);
+  }
+  ms.value=curMonth; ys.value=yr;
+  cms.value=curMonth; cys.value=yr;
+
   el('newMemberName')?.addEventListener('keydown',e=>{ if(e.key==='Enter') window.addMember(); });
   startListeners();
 }
