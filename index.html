@@ -4,205 +4,165 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>☕ Chai Group Manager</title>
-
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#c17f3a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChaiGroup">
-<!-- Apple touch icons (add sizes as needed) -->
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
-<link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
-
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --chai:#c17f3a;--chai-dark:#8b5a1e;--cream:#fdf6ec;
-    --steam:#f0e0c8;--brown:#3d1e0a;--green:#2d7a4f;
-    --red:#c0392b;--card:#fffaf4;
-    --shadow:0 4px 20px rgba(61,30,10,0.12);
-  }
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{font-family:'Baloo 2',sans-serif;background:var(--cream);color:var(--brown);min-height:100vh;}
+:root{
+  --chai:#c17f3a;--chai-dark:#8b5a1e;--cream:#fdf6ec;
+  --steam:#f0e0c8;--brown:#3d1e0a;--green:#2d7a4f;
+  --red:#c0392b;--card:#fffaf4;
+  --shadow:0 4px 20px rgba(61,30,10,0.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Baloo 2',sans-serif;background:var(--cream);color:var(--brown);min-height:100vh;}
 
-  /* TOP BUTTONS */
-  .top-btns{position:fixed;top:10px;right:12px;z-index:999;display:flex;gap:6px;align-items:center;}
-  .pdf-btn{padding:4px 10px;border-radius:20px;background:#1a6bbf;color:#fff;border:none;font-family:'Baloo 2',sans-serif;font-size:0.7rem;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
-  .login-btn{padding:4px 10px;border-radius:20px;background:#fff;color:var(--brown);border:2px solid var(--chai);font-family:'Baloo 2',sans-serif;font-size:0.7rem;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-  .logout-btn{padding:4px 10px;border-radius:20px;background:#eee;color:#666;border:none;font-family:'Baloo 2',sans-serif;font-size:0.68rem;font-weight:700;cursor:pointer;}
+.top-btns{position:fixed;top:10px;right:12px;z-index:999;display:flex;gap:6px;align-items:center;}
+.pdf-btn{padding:4px 10px;border-radius:20px;background:#1a6bbf;color:#fff;border:none;font-family:'Baloo 2',sans-serif;font-size:0.7rem;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.login-btn{padding:4px 10px;border-radius:20px;background:#fff;color:var(--brown);border:2px solid var(--chai);font-family:'Baloo 2',sans-serif;font-size:0.7rem;font-weight:800;cursor:pointer;}
+.logout-btn{padding:4px 10px;border-radius:20px;background:#eee;color:#666;border:none;font-family:'Baloo 2',sans-serif;font-size:0.68rem;font-weight:700;cursor:pointer;}
+.admin-badge{background:#2d7a4f;color:#fff;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:20px;display:none;}
+.viewer-banner{background:var(--steam);color:var(--chai-dark);text-align:center;padding:6px;font-size:0.78rem;font-weight:700;display:none;}
 
-  /* ADMIN BADGE */
-  .admin-badge{background:#2d7a4f;color:#fff;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:20px;display:none;}
+.loading-overlay{position:fixed;inset:0;background:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px;}
+.loading-overlay.hidden{display:none;}
+.spinner{width:40px;height:40px;border:4px solid var(--steam);border-top-color:var(--chai);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-  /* VIEWER BANNER */
-  .viewer-banner{background:var(--steam);color:var(--chai-dark);text-align:center;padding:6px;font-size:0.78rem;font-weight:700;display:none;}
+header{background:linear-gradient(135deg,var(--chai-dark),var(--chai));color:#fff;padding:16px 20px 0;text-align:center;position:relative;overflow:hidden;}
+header h1{font-size:1.8rem;font-weight:800;}
+header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;}
+.sync-dot.syncing{background:#f0a500;animation:pulse .8s infinite;}
+.sync-dot.synced{background:var(--green);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-  /* LOADING */
-  .loading-overlay{position:fixed;inset:0;background:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px;}
-  .loading-overlay.hidden{display:none;}
-  .spinner{width:40px;height:40px;border:4px solid var(--steam);border-top-color:var(--chai);border-radius:50%;animation:spin .8s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
+.tabs{display:flex;background:var(--chai-dark);}
+.tab-btn{flex:1;padding:12px;border:none;background:transparent;color:rgba(255,255,255,0.6);font-family:'Baloo 2',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all .25s;border-bottom:3px solid transparent;}
+.tab-btn.active{color:#fff;border-bottom-color:var(--steam);background:rgba(255,255,255,0.08);}
 
-  /* HEADER */
-  header{background:linear-gradient(135deg,var(--chai-dark),var(--chai));color:#fff;padding:16px 20px 0;text-align:center;position:relative;overflow:hidden;}
-  header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
-  header h1{font-size:1.8rem;font-weight:800;position:relative;}
-  header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;position:relative;}
+.page{display:none;padding:16px;}
+.page.active{display:block;}
 
-  .tabs{display:flex;background:var(--chai-dark);}
-  .tab-btn{flex:1;padding:12px;border:none;background:transparent;color:rgba(255,255,255,0.6);font-family:'Baloo 2',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all .25s;border-bottom:3px solid transparent;}
-  .tab-btn.active{color:#fff;border-bottom-color:var(--steam);background:rgba(255,255,255,0.08);}
+.month-selector{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;}
+.month-selector select{padding:8px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:var(--card);color:var(--brown);outline:none;}
 
-  .page{display:none;padding:16px;}
-  .page.active{display:block;}
+.total-banner{background:linear-gradient(135deg,var(--chai),#e8a857);color:#fff;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow);}
+.total-banner .label{font-size:0.8rem;opacity:.85;letter-spacing:.5px;}
+.total-banner .amount{font-size:2.8rem;font-weight:800;line-height:1.1;}
+.total-banner .amount span{font-size:1.4rem;}
 
-  /* TOTAL BANNER */
-  .total-banner{background:linear-gradient(135deg,var(--chai),#e8a857);color:#fff;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow);}
-  .total-banner .label{font-size:0.8rem;opacity:.85;letter-spacing:.5px;}
-  .total-banner .amount{font-size:2.8rem;font-weight:800;line-height:1.1;}
-  .total-banner .amount span{font-size:1.4rem;}
+.adjust-box{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.adjust-box label{font-weight:700;font-size:0.9rem;white-space:nowrap;color:var(--chai-dark);}
+.adj-inp{width:90px;padding:8px 10px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:800;text-align:center;outline:none;background:var(--cream);color:var(--brown);}
+.adj-inp.plus{color:var(--green);border-color:#2d7a4f66;background:#e8f7ef;}
+.adj-inp.minus{color:var(--red);border-color:#c0392b55;background:#fdf0f0;}
+.rem-inp{flex:1;padding:8px 10px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.88rem;outline:none;background:var(--cream);color:var(--brown);}
 
-  /* ADJUST BOX */
-  .adjust-box{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
-  .adjust-box label{font-weight:700;font-size:0.9rem;white-space:nowrap;color:var(--chai-dark);}
-  .adj-inp{width:90px;padding:8px 10px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:800;text-align:center;outline:none;background:var(--cream);color:var(--brown);transition:border-color .2s,color .2s,background .2s;}
-  .adj-inp:focus{border-color:var(--chai);}
-  .adj-inp.plus{color:var(--green);border-color:#2d7a4f66;background:#e8f7ef;}
-  .adj-inp.minus{color:var(--red);border-color:#c0392b55;background:#fdf0f0;}
-  .rem-inp{flex:1;padding:8px 10px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.88rem;outline:none;background:var(--cream);color:var(--brown);transition:border-color .2s;}
-  .rem-inp:focus{border-color:var(--chai);}
+.amount-setter{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.amount-setter label{font-weight:700;font-size:0.9rem;white-space:nowrap;}
+.amount-setter .rs{font-size:1.2rem;font-weight:800;color:var(--chai);}
+.amount-setter input{flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:1.1rem;font-weight:800;color:var(--chai-dark);background:var(--cream);outline:none;text-align:center;}
 
-  /* AMOUNT SETTER */
-  .amount-setter{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
-  .amount-setter label{font-weight:700;font-size:0.9rem;white-space:nowrap;}
-  .amount-setter .rs{font-size:1.2rem;font-weight:800;color:var(--chai);}
-  .amount-setter input{flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:1.1rem;font-weight:800;color:var(--chai-dark);background:var(--cream);outline:none;text-align:center;transition:border-color .2s;}
-  .amount-setter input:focus{border-color:var(--chai);}
+.add-member-row{display:flex;gap:8px;margin-bottom:16px;}
+.add-member-row input{flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:var(--card);color:var(--brown);outline:none;}
+.add-member-row button{padding:10px 16px;background:var(--chai);color:#fff;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;font-weight:700;cursor:pointer;}
 
-  /* ADD MEMBER */
-  .add-member-row{display:flex;gap:8px;margin-bottom:16px;}
-  .add-member-row input{flex:1;padding:10px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:var(--card);color:var(--brown);outline:none;transition:border-color .2s;}
-  .add-member-row input:focus{border-color:var(--chai);}
-  .add-member-row button{padding:10px 16px;background:var(--chai);color:#fff;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;font-weight:700;cursor:pointer;}
+/* ADMIN COLORS */
+.by-kakuniyal{border:2.5px solid #e67e22!important;box-shadow:0 0 0 2px #e67e2233!important;}
+.by-arvind{border:2.5px solid #27ae60!important;box-shadow:0 0 0 2px #27ae6033!important;}
+.by-bhushan{border:2.5px solid #2980b9!important;box-shadow:0 0 0 2px #2980b933!important;}
+.admin-tag{font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;}
+.tag-kakuniyal{background:#e67e2222;color:#e67e22;}
+.tag-arvind{background:#27ae6022;color:#27ae60;}
+.tag-bhushan{background:#2980b922;color:#2980b9;}
+.exp-by-kakuniyal td{border-left:3px solid #e67e22!important;}
+.exp-by-arvind td{border-left:3px solid #27ae60!important;}
+.exp-by-bhushan td{border-left:3px solid #2980b9!important;}
 
-  /* ADMIN COLORS */
-  /* Kakuniyal = Orange, Arvind = Green, Bhushan = Blue */
-  .by-kakuniyal{ border:2.5px solid #e67e22!important; box-shadow: 0 0 0 2px #e67e2233!important; }
-  .by-arvind   { border:2.5px solid #27ae60!important; box-shadow: 0 0 0 2px #27ae6033!important; }
-  .by-bhushan  { border:2.5px solid #2980b9!important; box-shadow: 0 0 0 2px #2980b933!important; }
-  .admin-tag{font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;}
-  .tag-kakuniyal{background:#e67e2222;color:#e67e22;}
-  .tag-arvind   {background:#27ae6022;color:#27ae60;}
-  .tag-bhushan  {background:#2980b922;color:#2980b9;}
-  /* Kharcha row color */
-  .exp-by-kakuniyal td{ border-left: 3px solid #e67e22!important; }
-  .exp-by-arvind    td{ border-left: 3px solid #27ae60!important; }
-  .exp-by-bhushan   td{ border-left: 3px solid #2980b9!important; }
+.members-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.member-row{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;border:2px solid transparent;transition:all .25s;}
+.member-row.paid{background:#e8f7ef;border-color:#2d7a4f55;}
+.member-row.unpaid{background:#fdf0f0;border-color:#c0392b44;}
+.member-no{font-size:0.72rem;font-weight:800;color:var(--chai-dark);opacity:.5;min-width:16px;text-align:center;}
+.member-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;flex-shrink:0;background:var(--steam);color:var(--chai-dark);}
+.member-row.paid .member-avatar{background:#2d7a4f22;color:var(--green);}
+.member-row.unpaid .member-avatar{background:#c0392b11;color:var(--red);}
+.member-info{flex:1;min-width:0;}
+.member-name{font-weight:700;font-size:1rem;}
+.member-row.paid .member-name{color:var(--green);}
+.member-row.unpaid .member-name{color:var(--red);}
+.member-sub{font-size:0.76rem;font-weight:600;opacity:.65;margin-top:1px;}
+.member-row.paid .member-sub{color:var(--green);opacity:1;}
+.member-row.unpaid .member-sub{color:var(--red);opacity:1;}
+.name-edit-inp{border:none;border-bottom:2px solid var(--chai);background:transparent;font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:700;color:var(--brown);outline:none;width:100%;text-transform:uppercase;}
+.action-btns{display:flex;gap:6px;flex-shrink:0;}
+.tick-btn,.cross-btn{width:38px;height:38px;border:none;border-radius:50%;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.tick-btn{background:#2d7a4f22;color:var(--green);}
+.tick-btn.active{background:var(--green);color:#fff;}
+.cross-btn{background:#c0392b11;color:var(--red);}
+.cross-btn.active{background:var(--red);color:#fff;}
 
-  /* MEMBER LIST */
-  .members-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-  .member-row{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;border:2px solid transparent;transition:all .25s;}
-  .member-row.paid{background:#e8f7ef;border-color:#2d7a4f55;}
-  .member-row.unpaid{background:#fdf0f0;border-color:#c0392b44;}
-  .member-no{font-size:0.72rem;font-weight:800;color:var(--chai-dark);opacity:.5;min-width:16px;text-align:center;}
-  .member-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;flex-shrink:0;background:var(--steam);color:var(--chai-dark);transition:all .25s;}
-  .member-row.paid .member-avatar{background:#2d7a4f22;color:var(--green);}
-  .member-row.unpaid .member-avatar{background:#c0392b11;color:var(--red);}
-  .member-info{flex:1;min-width:0;}
-  .member-name{font-weight:700;font-size:1rem;}
-  .member-row.paid .member-name{color:var(--green);}
-  .member-row.unpaid .member-name{color:var(--red);}
-  .member-sub{font-size:0.76rem;font-weight:600;opacity:.65;margin-top:1px;}
-  .member-row.paid .member-sub{color:var(--green);opacity:1;}
-  .member-row.unpaid .member-sub{color:var(--red);opacity:1;}
-  .name-edit-inp{border:none;border-bottom:2px solid var(--chai);background:transparent;font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:700;color:var(--brown);outline:none;width:100%;text-transform:uppercase;}
+.kharcha-summary{background:linear-gradient(135deg,var(--brown),#6b3515);color:#fff;border-radius:16px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
+.k-label{font-size:0.8rem;opacity:.8;}
+.k-amount{font-size:2rem;font-weight:800;}
+.expense-table{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);}
+.expense-table table{width:100%;border-collapse:collapse;}
+.expense-table thead{background:linear-gradient(135deg,var(--chai),#e8a857);color:#fff;}
+.expense-table th{padding:12px 8px;font-size:0.82rem;font-weight:700;text-align:center;}
+.expense-table th:first-child{text-align:left;padding-left:14px;}
+.expense-table td{padding:9px 8px;font-size:0.85rem;text-align:center;border-bottom:1px solid var(--steam);}
+.expense-table td:first-child{text-align:left;padding-left:14px;font-weight:700;color:var(--chai-dark);}
+.expense-table tbody tr:last-child td{border-bottom:none;}
+.expense-table tbody tr:nth-child(even){background:#fdf0e0;}
+.remarks-input{width:100%;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:0.82rem;color:var(--brown);outline:none;text-align:center;}
+.amount-input{width:70px;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:0.85rem;font-weight:700;color:var(--green);outline:none;text-align:center;}
+.total-row td{background:linear-gradient(135deg,#2d7a4f11,#2d7a4f22)!important;font-weight:800!important;color:var(--green)!important;border-top:2px solid var(--green)!important;}
 
-  .action-btns{display:flex;gap:6px;flex-shrink:0;}
-  .tick-btn,.cross-btn{width:38px;height:38px;border:none;border-radius:50%;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:transform .12s;}
-  .tick-btn{background:#2d7a4f22;color:var(--green);}
-  .tick-btn:hover,.tick-btn.active{background:var(--green);color:#fff;}
-  .cross-btn{background:#c0392b11;color:var(--red);}
-  .cross-btn:hover,.cross-btn.active{background:var(--red);color:#fff;}
+.carry-card{background:var(--card);border-radius:14px;padding:12px 16px;margin-top:14px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--chai);}
+.carry-label{font-weight:700;font-size:0.88rem;}
+.carry-sub{font-size:0.75rem;opacity:.6;margin-top:2px;}
+.carry-input-wrap{display:flex;align-items:center;gap:2px;background:var(--cream);border:2px solid var(--steam);border-radius:10px;padding:6px 10px;}
+.carry-rs{font-size:1rem;font-weight:800;color:var(--chai-dark);}
+.carry-input{width:90px;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:1.2rem;font-weight:800;outline:none;text-align:right;color:var(--brown);}
+.carry-input.positive{color:var(--green);}
+.carry-input.negative{color:var(--red);}
 
-  /* KHARCHA */
-  .kharcha-summary{background:linear-gradient(135deg,var(--brown),#6b3515);color:#fff;border-radius:16px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
-  .k-label{font-size:0.8rem;opacity:.8;}
-  .k-amount{font-size:2rem;font-weight:800;}
-  .month-selector{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;}
-  .month-selector select{padding:8px 14px;border:2px solid var(--steam);border-radius:10px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:var(--card);color:var(--brown);outline:none;}
-  .expense-table{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);}
-  .expense-table table{width:100%;border-collapse:collapse;}
-  .expense-table thead{background:linear-gradient(135deg,var(--chai),#e8a857);color:#fff;}
-  @media print{.expense-table thead{display:none!important;}}
-  .expense-table th{padding:12px 8px;font-size:0.82rem;font-weight:700;text-align:center;}
-  .expense-table th:first-child{text-align:left;padding-left:14px;}
-  .expense-table td{padding:9px 8px;font-size:0.85rem;text-align:center;border-bottom:1px solid var(--steam);}
-  .expense-table td:first-child{text-align:left;padding-left:14px;font-weight:700;color:var(--chai-dark);}
-  .expense-table tbody tr:last-child td{border-bottom:none;}
-  .expense-table tbody tr:nth-child(even){background:#fdf0e0;}
-  .remarks-input{width:100%;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:0.82rem;color:var(--brown);outline:none;text-align:center;}
-  .remarks-input::placeholder{color:#ccc;}
-  .amount-input{width:70px;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:0.85rem;font-weight:700;color:var(--green);outline:none;text-align:center;}
-  .amount-input::placeholder{color:#ccc;}
-  .total-row td{background:linear-gradient(135deg,#2d7a4f11,#2d7a4f22)!important;font-weight:800!important;color:var(--green)!important;border-top:2px solid var(--green)!important;}
-  .total-row{page-break-before:avoid;}
+.balance-card{background:var(--card);border-radius:14px;padding:14px 16px;margin-top:8px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.b-label{font-size:0.75rem;opacity:.65;}
+.b-val{font-weight:800;font-size:0.95rem;}
+.b-sep{font-size:1rem;opacity:.4;}
+.b-amt{font-size:1.5rem;font-weight:800;}
+.b-amt.positive{color:var(--green);}
+.b-amt.negative{color:var(--red);}
 
-  /* CARRY */
-  .carry-card{background:var(--card);border-radius:14px;padding:12px 16px;margin-top:14px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--chai);}
-  .carry-label{font-weight:700;font-size:0.88rem;}
-  .carry-sub{font-size:0.75rem;opacity:.6;margin-top:2px;}
-  .carry-input-wrap{display:flex;align-items:center;gap:2px;background:var(--cream);border:2px solid var(--steam);border-radius:10px;padding:6px 10px;transition:border-color .2s;}
-  .carry-input-wrap:focus-within{border-color:var(--chai);}
-  .carry-rs{font-size:1rem;font-weight:800;color:var(--chai-dark);}
-  .carry-input{width:90px;border:none;background:transparent;font-family:'Baloo 2',sans-serif;font-size:1.2rem;font-weight:800;outline:none;text-align:right;color:var(--brown);}
-  .carry-input.positive{color:var(--green);}
-  .carry-input.negative{color:var(--red);}
+@keyframes steam{0%{transform:translateY(0) scaleX(1);opacity:.7}100%{transform:translateY(-18px) scaleX(1.3);opacity:0}}
+.steam-icon{display:inline-block;animation:steam 1.4s ease-in-out infinite alternate;}
 
-  /* BALANCE */
-  .balance-card{background:var(--card);border-radius:14px;padding:14px 16px;margin-top:8px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
-  .b-label{font-size:0.75rem;opacity:.65;}
-  .b-val{font-weight:800;font-size:0.95rem;}
-  .b-sep{font-size:1rem;opacity:.4;}
-  .b-amt{font-size:1.5rem;font-weight:800;}
-  .b-amt.positive{color:var(--green);}
-  .b-amt.negative{color:var(--red);}
-
-  /* SYNC STATUS */
-  .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
-  .sync-dot.syncing{background:#f0a500;animation:pulse .8s infinite;}
-  .sync-dot.synced{background:var(--green);}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-
-  @keyframes steam{0%{transform:translateY(0) scaleX(1);opacity:.7}100%{transform:translateY(-18px) scaleX(1.3);opacity:0}}
-  .steam-icon{display:inline-block;animation:steam 1.4s ease-in-out infinite alternate;}
-
-  @media print{
-    .top-btns,header,.tabs,.amount-setter,.add-member-row,
-    .action-btns,.carry-input-wrap,.viewer-banner,.sync-dot{display:none!important;}
-    *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-    body{background:#fff!important;}
-    .page{display:block!important;padding:12px!important;}
-    #page-collection{page-break-after:always!important;}
-    .total-banner{background:#c17f3a!important;}
-    .kharcha-summary{background:#3d1e0a!important;}
-    .member-row,.expense-table,.balance-card,.carry-card,.adjust-box{box-shadow:none!important;border:1px solid #ddd!important;}
-    .adjust-box{display:flex!important;}
-    .adj-inp,.rem-inp{border:none!important;background:transparent!important;}
-  }
+@media print{
+  .top-btns,header,.tabs,.amount-setter,.add-member-row,
+  .action-btns,.carry-input-wrap,.viewer-banner,.sync-dot,.month-selector{display:none!important;}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  body{background:#fff!important;}
+  .page{display:block!important;padding:12px!important;}
+  #page-collection{page-break-after:always!important;}
+  .total-banner{background:#c17f3a!important;}
+  .kharcha-summary{background:#3d1e0a!important;}
+}
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <div style="font-weight:700;color:var(--chai-dark);">Load ho raha hai...</div>
 </div>
 
-<!-- TOP BUTTONS -->
 <div class="top-btns">
   <span class="admin-badge" id="adminBadge">👑 Admin</span>
   <button class="pdf-btn" onclick="printAll()">PDF</button>
@@ -210,7 +170,6 @@
   <button class="logout-btn" id="logoutBtn" onclick="adminLogout()" style="display:none">Logout</button>
 </div>
 
-<!-- VIEWER BANNER -->
 <div class="viewer-banner" id="viewerBanner">👁️ View Only Mode — Sirf Admin edit kar sakta hai</div>
 
 <header>
@@ -223,24 +182,25 @@
   <button class="tab-btn" onclick="switchTab('kharcha')">📋 Kharcha</button>
 </div>
 
-<!-- PAGE 1 -->
+<!-- COLLECTION PAGE -->
 <div id="page-collection" class="page active">
+
+  <div class="month-selector">
+    <label style="font-weight:600;font-size:.9rem">Mahina:</label>
+    <select id="colMonthSelect" onchange="onColMonthChange()"></select>
+    <select id="colYearSelect" onchange="onColMonthChange()"></select>
+  </div>
+
   <div class="total-banner">
     <div class="label">TOTAL COLLECTION</div>
     <div class="amount"><span>₹</span><span id="totalCollection">0</span></div>
     <div class="label" id="memberCountLabel">0/0 ne diya</div>
   </div>
 
-  <div class="month-selector" style="margin-bottom:10px;">
-    <label style="font-weight:600;font-size:.9rem">Mahina:</label>
-    <select id="colMonthSelect" onchange="onColMonthChange()"></select>
-    <select id="colYearSelect" onchange="onColMonthChange()"></select>
-  </div>
-
   <div class="adjust-box" id="adjustBox">
     <label>⚡ Adjust:</label>
     <input class="adj-inp" type="number" id="adjAmount" placeholder="+/-0" oninput="onAdjChange(this)" />
-    <input class="rem-inp" type="text" id="adjRemark" placeholder="reason..." onchange="saveAdj()" />
+    <input class="rem-inp" type="text" id="adjRemark" placeholder="reason..." onchange="saveAdjToDb()" />
   </div>
 
   <div class="amount-setter" id="amountSetter">
@@ -259,7 +219,7 @@
   <div class="members-list" id="membersList"></div>
 </div>
 
-<!-- PAGE 2 -->
+<!-- KHARCHA PAGE -->
 <div id="page-kharcha" class="page">
   <div class="kharcha-summary">
     <div>
@@ -307,25 +267,21 @@
   </div>
 </div>
 
-
-<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, getDocs }
+import { getFirestore, doc, onSnapshot, setDoc, getDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG ──
-const ADMIN_EMAILS = ["kakauniyal@gmail.com", "arvindbhel88@gmail.com", "bhushanmehta08@gmail.com"];
-
+const ADMIN_EMAILS = ["kakuniyal@gmail.com","arvindbhel88@gmail.com","bhushanmehta08@gmail.com"];
 const ADMIN_CONFIG = {
-  "kakauniyal@gmail.com":    { cssClass:"by-kakuniyal", tag:"tag-kakuniyal", label:"Kakuniyal", color:"#e67e22" },
-  "arvindbhel88@gmail.com": { cssClass:"by-arvind",    tag:"tag-arvind",    label:"Arvind",    color:"#27ae60" },
-  "bhushanmehta08@gmail.com": { cssClass:"by-bhushan", tag:"tag-bhushan",   label:"Bhushan",   color:"#2980b9" }
+  "kakuniyal@gmail.com":    {cssClass:"by-kakuniyal",tag:"tag-kakuniyal",label:"Kakuniyal",color:"#e67e22"},
+  "arvindbhel88@gmail.com":  {cssClass:"by-arvind",   tag:"tag-arvind",   label:"Arvind",   color:"#27ae60"},
+  "bhushanmehta08@gmail.com":{cssClass:"by-bhushan",  tag:"tag-bhushan",  label:"Bhushan",  color:"#2980b9"}
 };
-
-function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()] || null; }
+function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||null; }
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZZuSnDc7nxcx-LCbxPw9ta4sqSiChYQE",
@@ -343,332 +299,250 @@ const db   = getFirestore(app);
 // ── STATE ──
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 let isAdmin = false;
-let members = [];        // Base member list (names only)
-let membersData = {};    // Month-wise status: { "2025-2": [{name,paid,status,updatedBy},...] }
+let members = [];       // [{name}] — base list
+let colData  = {};      // {"2025-1": [{name,paid,status,updatedBy},...]}
 let expenses = {};
-let unsubMembers = null;
-let unsubExpenses = null;
-let unsubMembersData = null;
 let currentAdj = 0;
 let currentCommonAmt = 300;
 
-function getColKey(){
-  const m = el('colMonthSelect')?.value ?? new Date().getMonth();
-  const y = el('colYearSelect')?.value ?? new Date().getFullYear();
-  return `${y}-${m}`;
-}
-
-function getCurrentMonthMembers(){
-  const key = getColKey();
-  if(!membersData[key]){
-    // Initialize from base members list with empty status
-    membersData[key] = members.map(m => ({
-      name: m.name,
-      paid: 0,
-      status: null,
-      updatedBy: null
-    }));
-  }
-  // Sync names from base members (in case names were edited)
-  members.forEach((m, i) => {
-    if(membersData[key][i]) membersData[key][i].name = m.name;
-    else membersData[key][i] = { name: m.name, paid: 0, status: null, updatedBy: null };
-  });
-  // Remove extra entries if members were deleted
-  membersData[key] = membersData[key].slice(0, members.length);
-  return membersData[key];
-}
-
 function el(id){ return document.getElementById(id); }
-
-// ── SYNC DOT ──
 function setSyncing(){ el('syncDot').className='sync-dot syncing'; }
 function setSynced(){  el('syncDot').className='sync-dot synced'; }
 
+// ── COLLECTION KEY ──
+function getColKey(){
+  return `${el('colYearSelect')?.value||new Date().getFullYear()}-${el('colMonthSelect')?.value||new Date().getMonth()}`;
+}
+
+// ── GET CURRENT MONTH MEMBERS ──
+function getMonthList(){
+  const key = getColKey();
+  if(!colData[key]){
+    colData[key] = members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
+  }
+  // sync names, handle added/removed members
+  const list = colData[key];
+  members.forEach((m,i)=>{
+    if(list[i]) list[i].name=m.name;
+    else list[i]={name:m.name,paid:0,status:null,updatedBy:null};
+  });
+  return list.slice(0,members.length);
+}
+
 // ── AUTH ──
-window.adminLogin = async()=>{
-  const provider = new GoogleAuthProvider();
-  try{ await signInWithPopup(auth, provider); }
-  catch(e){ alert('Login failed: '+e.message); }
-};
+window.adminLogin  = async()=>{ try{ await signInWithPopup(auth,new GoogleAuthProvider()); }catch(e){ alert('Login failed: '+e.message); } };
 window.adminLogout = async()=>{ await signOut(auth); };
 
 onAuthStateChanged(auth, user=>{
-  // Auth state changes — re-check admin status against live list
-  checkAdminStatus(user);
-});
-
-function checkAdminStatus(user){
   if(user && ADMIN_EMAILS.includes(user.email.toLowerCase())){
-    isAdmin = true;
+    isAdmin=true;
     el('adminBadge').style.display='inline-block';
-    el('adminBadge').textContent = '👑 Admin';
+    el('adminBadge').textContent='👑 Admin';
     el('loginBtn').style.display='none';
     el('logoutBtn').style.display='block';
     el('viewerBanner').style.display='none';
     enableAdminUI();
   } else {
-    isAdmin = false;
+    isAdmin=false;
     el('adminBadge').style.display='none';
     el('logoutBtn').style.display='none';
     el('viewerBanner').style.display='block';
     el('loginBtn').style.display='block';
     disableAdminUI();
   }
-}
+});
 
 function enableAdminUI(){
   el('addMemberRow').style.display='flex';
   el('amountSetter').style.display='flex';
   el('adjustBox').style.display='flex';
   document.querySelectorAll('.action-btns').forEach(b=>b.style.display='flex');
-  document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input')
-    .forEach(i=>i.removeAttribute('disabled'));
+  document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input').forEach(i=>i.removeAttribute('disabled'));
   document.querySelectorAll('.member-info').forEach(i=>i.style.cursor='pointer');
 }
-
 function disableAdminUI(){
   el('addMemberRow').style.display='none';
   el('amountSetter').style.display='none';
+  el('adjustBox').style.display='none';
   document.querySelectorAll('.action-btns').forEach(b=>b.style.display='none');
-  document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input')
-    .forEach(i=>i.setAttribute('disabled','true'));
+  document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input').forEach(i=>i.setAttribute('disabled','true'));
   document.querySelectorAll('.member-info').forEach(i=>i.style.cursor='default');
 }
 
-// ── FIRESTORE LISTENERS ──
+// ── LISTENERS ──
 function startListeners(){
-  // Base members list (names)
-  if(unsubMembers) unsubMembers();
-  let lastMembersJson = '';
-  unsubMembers = onSnapshot(doc(db,'chai','members'), snap=>{
-    if(snap.exists()){
-      const newJson = JSON.stringify(snap.data().list);
-      if(newJson !== lastMembersJson){
-        lastMembersJson = newJson;
-        members = snap.data().list || [];
-        renderMembers();
-      }
-    }
+  // Members base list
+  let lastMemJson='';
+  onSnapshot(doc(db,'chai','members'), snap=>{
+    const json=JSON.stringify(snap.exists()?snap.data().list:[]);
+    if(json!==lastMemJson){ lastMemJson=json; members=snap.exists()?(snap.data().list||[]):[];  renderMembers(); }
     el('loadingOverlay').classList.add('hidden');
     setSynced();
   });
 
-  // Month-wise collection data
-  if(unsubMembersData) unsubMembersData();
-  let lastMembersDataJson = '';
-  unsubMembersData = onSnapshot(doc(db,'chai','membersData'), snap=>{
-    if(snap.exists()){
-      const newJson = JSON.stringify(snap.data());
-      if(newJson !== lastMembersDataJson){
-        lastMembersDataJson = newJson;
-        membersData = snap.data();
-        renderMembers();
-      }
-    }
+  // Collection month data
+  let lastColJson='';
+  onSnapshot(doc(db,'chai','colData'), snap=>{
+    const json=JSON.stringify(snap.exists()?snap.data():{});
+    if(json!==lastColJson){ lastColJson=json; colData=snap.exists()?snap.data():{};  renderMembers(); }
     setSynced();
   });
 
-  // Expenses realtime
-  if(unsubExpenses) unsubExpenses();
-  let lastExpensesJson = '';
-  unsubExpenses = onSnapshot(doc(db,'chai','expenses'), snap=>{
-    if(snap.exists()){
-      const newJson = JSON.stringify(snap.data());
-      if(newJson !== lastExpensesJson){
-        lastExpensesJson = newJson;
-        expenses = snap.data();
-        renderExpenses();
-      }
-    }
+  // Expenses
+  let lastExpJson='';
+  onSnapshot(doc(db,'chai','expenses'), snap=>{
+    const json=JSON.stringify(snap.exists()?snap.data():{});
+    if(json!==lastExpJson){ lastExpJson=json; expenses=snap.exists()?snap.data():{};  renderExpenses(); }
     setSynced();
   });
 
-  // Adjust realtime
+  // Adjust
   onSnapshot(doc(db,'chai','adjust'), snap=>{
     if(snap.exists()){
-      const a = snap.data();
-      // Update global variables FIRST
-      currentAdj = parseFloat(a.amount)||0;
-      currentCommonAmt = parseInt(a.commonAmount)||300;
-      // Then update UI inputs
+      const a=snap.data();
+      currentAdj=parseFloat(a.amount)||0;
+      currentCommonAmt=parseInt(a.commonAmount)||300;
       if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),currentAdj); }
       if(el('adjRemark'))  el('adjRemark').value=a.remark||'';
-      if(el('commonAmount')) el('commonAmount').value = currentCommonAmt;
+      if(el('commonAmount')) el('commonAmount').value=currentCommonAmt;
       updateTotals();
     }
   });
 
-  // Carry realtime
+  // Carry
   onSnapshot(doc(db,'chai','carry'), snap=>{
     if(snap.exists()){
-      const key = getKey();
-      const val = snap.data()[key] || 0;
+      const val=snap.data()[getKharchaKey()]||0;
       if(el('carryInput')){ el('carryInput').value=val||''; styleCarry(val); }
       updateBalance();
     }
   });
 }
 
-// ── SAVE HELPERS ──
+// ── SAVE ──
 async function saveMembers(){
-  if(!isAdmin) return;
-  setSyncing();
-  // Save base list (names only - strip status)
-  const baseList = members.map(m => ({ name: m.name }));
-  await setDoc(doc(db,'chai','members'),{ list: baseList });
+  if(!isAdmin) return; setSyncing();
+  await setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
   setSynced();
 }
-
-async function saveMembersData(){
-  if(!isAdmin) return;
-  setSyncing();
-  await setDoc(doc(db,'chai','membersData'), membersData);
+async function saveColData(){
+  if(!isAdmin) return; setSyncing();
+  await setDoc(doc(db,'chai','colData'),colData);
   setSynced();
 }
-
 async function saveExpenses(){
-  if(!isAdmin) return;
-  setSyncing();
-  await setDoc(doc(db,'chai','expenses'), expenses);
+  if(!isAdmin) return; setSyncing();
+  await setDoc(doc(db,'chai','expenses'),expenses);
   setSynced();
 }
-
 async function saveAdjToDb(){
   if(!isAdmin) return;
-  const amt = parseFloat(el('adjAmount').value)||0;
-  const rem = el('adjRemark').value||'';
-  const commonAmt = parseInt(el('commonAmount')?.value)||300;
+  const amt=parseFloat(el('adjAmount').value)||0;
+  const rem=el('adjRemark').value||'';
+  const commonAmt=parseInt(el('commonAmount')?.value)||300;
   setSyncing();
-  // Preserve commonAmount field
-  const snap = await getDoc(doc(db,'chai','adjust'));
-  const existing = snap.exists() ? snap.data() : {};
-  await setDoc(doc(db,'chai','adjust'),{ ...existing, amount:amt, remark:rem, commonAmount:commonAmt });
-  setSynced();
-  updateTotals();
+  await setDoc(doc(db,'chai','adjust'),{amount:amt,remark:rem,commonAmount:commonAmt});
+  setSynced(); updateTotals();
 }
-
-let amountSaveTimer = null;
-window.onAmountChange = function(){
-  currentCommonAmt = parseInt(el('commonAmount')?.value)||300;
-  renderMembers();
-  // Debounce — 1 second baad save karo taaki har keypress pe save na ho
-  clearTimeout(amountSaveTimer);
-  amountSaveTimer = setTimeout(saveAmountToDb, 1000);
-};
-
-async function saveAmountToDb(){
-  if(!isAdmin) return;
-  const commonAmt = parseInt(el('commonAmount')?.value)||300;
-  // Sirf commonAmount update karo — adjust doc ke baaki fields preserve karo
-  const snap = await getDoc(doc(db,'chai','adjust'));
-  const existing = snap.exists() ? snap.data() : { amount:0, remark:'' };
-  existing.commonAmount = commonAmt;
-  setSyncing();
-  await setDoc(doc(db,'chai','adjust'), existing);
-  setSynced();
-};
-
+window.saveAdj=saveAdjToDb;
 async function saveCarryToDb(){
   if(!isAdmin) return;
-  const key = getKey();
-  const val = parseFloat(el('carryInput').value)||0;
-  // get existing carry doc first
-  const snap = await getDoc(doc(db,'chai','carry'));
-  const existing = snap.exists() ? snap.data() : {};
-  existing[key] = val;
-  setSyncing();
-  await setDoc(doc(db,'chai','carry'), existing);
+  const key=getKharchaKey();
+  const val=parseFloat(el('carryInput').value)||0;
+  const snap=await getDoc(doc(db,'chai','carry'));
+  const existing=snap.exists()?snap.data():{};
+  existing[key]=val; setSyncing();
+  await setDoc(doc(db,'chai','carry'),existing);
   setSynced();
 }
 
 // ── TABS ──
-window.switchTab = function(tab){
+window.switchTab=function(tab){
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&tab==='collection')||(i===1&&tab==='kharcha')));
-  el('page-collection').classList.toggle('active', tab==='collection');
-  el('page-kharcha').classList.toggle('active', tab==='kharcha');
+  el('page-collection').classList.toggle('active',tab==='collection');
+  el('page-kharcha').classList.toggle('active',tab==='kharcha');
   el('page-collection').style.display='';
   el('page-kharcha').style.display='';
   if(tab==='kharcha') updateBalance();
 };
 
+// ── COLLECTION MONTH ──
+window.onColMonthChange=function(){ renderMembers(); updateTotals(); };
+
 // ── ADJUST ──
-window.onAdjChange = function(inp){ currentAdj = parseFloat(inp.value)||0; styleAdj(inp, currentAdj); saveAdjToDb(); };
-window.saveAdj = saveAdjToDb;
+window.onAdjChange=function(inp){ currentAdj=parseFloat(inp.value)||0; styleAdj(inp,currentAdj); saveAdjToDb(); };
 function styleAdj(inp,v){ inp.className='adj-inp'+(v>0?' plus':v<0?' minus':''); }
 function getAdj(){ return currentAdj; }
 
-// ── MEMBERS ──
-window.addMember = async function(){
-  if(!isAdmin) return;
-  const inp=el('newMemberName'), name=inp.value.trim().toUpperCase();
-  if(!name) return;
-  members.push({name:'Mr. '+name});
-  await saveMembers();
-  inp.value='';
+// ── AMOUNT ──
+let amtTimer=null;
+window.onAmountChange=function(){
+  currentCommonAmt=parseInt(el('commonAmount')?.value)||300;
+  renderMembers();
+  clearTimeout(amtTimer); amtTimer=setTimeout(saveAdjToDb,1000);
 };
-
 function getBase(){ return currentCommonAmt; }
 
-window.tickMember = async function(i){
+// ── MEMBERS ──
+window.addMember=async function(){
   if(!isAdmin) return;
+  const inp=el('newMemberName'),name=inp.value.trim().toUpperCase();
+  if(!name) return;
+  members.push({name:'Mr. '+name});
+  await saveMembers(); inp.value='';
+};
+
+window.tickMember=async function(i){
+  if(!isAdmin) return;
+  const key=getColKey();
+  const list=getMonthList();
+  const user=auth.currentUser?.email?.toLowerCase();
   const amt=getBase();
-  const currentUser = auth.currentUser?.email?.toLowerCase();
-  const mList = getCurrentMonthMembers();
-  if(mList[i].status==='paid'){ mList[i].paid=0; mList[i].status=null; mList[i].updatedBy=currentUser; }
-  else{ mList[i].status='paid'; mList[i].paid=amt; mList[i].updatedBy=currentUser; }
-  membersData[getColKey()] = mList;
-  await saveMembersData();
+  if(list[i].status==='paid'){list[i].paid=0;list[i].status=null;list[i].updatedBy=user;}
+  else{list[i].status='paid';list[i].paid=amt;list[i].updatedBy=user;}
+  colData[key]=list; await saveColData();
 };
 
-window.crossMember = async function(i){
+window.crossMember=async function(i){
   if(!isAdmin) return;
-  const mList = getCurrentMonthMembers();
-  mList[i].status = mList[i].status==='unpaid' ? null : 'unpaid';
-  mList[i].paid=0;
-  mList[i].updatedBy = auth.currentUser?.email?.toLowerCase();
-  membersData[getColKey()] = mList;
-  await saveMembersData();
+  const key=getColKey();
+  const list=getMonthList();
+  const user=auth.currentUser?.email?.toLowerCase();
+  list[i].status=list[i].status==='unpaid'?null:'unpaid';
+  list[i].paid=0; list[i].updatedBy=user;
+  colData[key]=list; await saveColData();
 };
 
-window.startEdit = function(i){
+window.startEdit=function(i){
   if(!isAdmin) return;
-  const infoDiv=el('info_'+i);
-  infoDiv.innerHTML=`
-    <input id="editInp_${i}" class="name-edit-inp" type="text" value="${members[i].name}"
-      oninput="this.value=this.value.toUpperCase()"
-      onblur="saveEdit(${i})"
-      onkeydown="if(event.key==='Enter')this.blur()" />`;
+  const div=el('info_'+i);
+  div.innerHTML=`<input id="editInp_${i}" class="name-edit-inp" type="text" value="${members[i].name}"
+    oninput="this.value=this.value.toUpperCase()" onblur="saveEdit(${i})"
+    onkeydown="if(event.key==='Enter')this.blur()"/>`;
   setTimeout(()=>{ const inp=el('editInp_'+i); if(inp){inp.focus();inp.select();} },50);
 };
 
-window.saveEdit = async function(i){
-  const inp=el('editInp_'+i);
-  if(!inp) return;
-  const newName=inp.value.trim().toUpperCase();
-  if(newName){
-    members[i].name=newName;
-    // Update name in all months data too
-    Object.keys(membersData).forEach(key=>{
-      if(membersData[key][i]) membersData[key][i].name = newName;
-    });
+window.saveEdit=async function(i){
+  const inp=el('editInp_'+i); if(!inp) return;
+  const name=inp.value.trim().toUpperCase();
+  if(name){
+    members[i].name=name;
+    Object.keys(colData).forEach(k=>{ if(colData[k][i]) colData[k][i].name=name; });
   }
-  await saveMembers();
-  await saveMembersData();
+  await saveMembers(); await saveColData();
 };
 
 function renderMembers(){
-  const list=el('membersList');
-  if(!list) return;
+  const list=el('membersList'); if(!list) return;
   list.innerHTML='';
   const base=getBase();
-  const mList = getCurrentMonthMembers();
+  const mList=getMonthList();
   mList.forEach((m,i)=>{
-    const cfg = m.updatedBy ? getAdminConfig(m.updatedBy) : null;
+    const cfg=m.updatedBy?getAdminConfig(m.updatedBy):null;
     const row=document.createElement('div');
     row.className=`member-row${m.status==='paid'?' paid':m.status==='unpaid'?' unpaid':''}${cfg?' '+cfg.cssClass:''}`;
     const initial=(m.name||'?').replace('Mr. ','').charAt(0).toUpperCase();
-    const tagHtml = cfg ? `<span class="admin-tag ${cfg.tag}">${cfg.label}</span>` : '';
+    const tagHtml=cfg?`<span class="admin-tag ${cfg.tag}">${cfg.label}</span>`:'';
     const sub=m.status==='paid'?`✓ ₹${m.paid} diya ${tagHtml}`:m.status==='unpaid'?`✗ Nahi diya ${tagHtml}`:`Expected ₹${base}`;
     row.innerHTML=`
       <span class="member-no">${i+1}</span>
@@ -687,7 +561,7 @@ function renderMembers(){
 }
 
 function updateTotals(){
-  const mList = getCurrentMonthMembers();
+  const mList=getMonthList();
   const collected=mList.reduce((s,m)=>s+(m.paid||0),0);
   const adj=getAdj();
   if(el('totalCollection')) el('totalCollection').textContent=collected+adj;
@@ -697,87 +571,67 @@ function updateTotals(){
 }
 
 // ── EXPENSES ──
-function getKey(){ return `${el('yearSelect')?.value}-${el('monthSelect')?.value}`; }
+function getKharchaKey(){ return `${el('yearSelect')?.value}-${el('monthSelect')?.value}`; }
 
-window.updateMonth = function(){
-  const key=getKey();
+window.updateMonth=function(){
+  const key=getKharchaKey();
   if(!expenses[key]){ expenses[key]={}; for(let d=1;d<=31;d++) expenses[key][d]={remarks:'',amount:''}; }
   renderExpenses();
 };
 
 function renderExpenses(){
-  const key=getKey(), body=el('expenseBody');
+  const key=getKharchaKey(), body=el('expenseBody');
   if(!body) return;
   body.innerHTML='';
   const m=parseInt(el('monthSelect')?.value||new Date().getMonth());
   const y=parseInt(el('yearSelect')?.value||new Date().getFullYear());
   const days=new Date(y,m+1,0).getDate();
   let total=0;
-
   for(let d=1;d<=days;d++){
     const data=(expenses[key]||{})[d]||{remarks:'',amount:''};
-    const amt=parseFloat(data.amount)||0;
-    total+=amt;
-    const cfg = data.updatedBy ? getAdminConfig(data.updatedBy) : null;
+    const amt=parseFloat(data.amount)||0; total+=amt;
+    const cfg=data.updatedBy?getAdminConfig(data.updatedBy):null;
     const tr=document.createElement('tr');
     if(cfg) tr.className=`exp-by-${cfg.label.toLowerCase()}`;
     const rdisabled=isAdmin?'':'disabled';
-    const tagHtml = cfg ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${cfg.color};margin-right:4px;vertical-align:middle;"></span>` : '';
+    const dot=cfg?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${cfg.color};margin-right:4px;vertical-align:middle;"></span>`:'';
     tr.innerHTML=`
-      <td>${tagHtml}${d} ${MONTHS[m].slice(0,3)}</td>
+      <td>${dot}${d} ${MONTHS[m].slice(0,3)}</td>
       <td><input class="remarks-input" type="text" placeholder="kya aaya?" value="${data.remarks}" ${rdisabled}
         onchange="saveExpense('${key}',${d},'remarks',this.value)"/></td>
       <td><input class="amount-input" type="number" placeholder="0" value="${data.amount||''}" ${rdisabled}
         onchange="saveExpense('${key}',${d},'amount',this.value)"/></td>`;
     body.appendChild(tr);
   }
-  // total row right after last date
-  const totalTr=document.createElement('tr');
-  totalTr.className='total-row';
-  totalTr.innerHTML=`<td>TOTAL</td><td></td><td id="footerTotal">₹${total}</td>`;
-  body.appendChild(totalTr);
-
-  loadCarryForMonth();
-  calcTotal();
+  const tot=document.createElement('tr');
+  tot.className='total-row';
+  tot.innerHTML=`<td>TOTAL</td><td></td><td id="footerTotal">₹${total}</td>`;
+  body.appendChild(tot);
+  loadCarryForMonth(); calcTotal();
 }
 
-window.saveExpense = async function(key,day,field,value){
+window.saveExpense=async function(key,day,field,value){
   if(!isAdmin) return;
   if(!expenses[key]) expenses[key]={};
   if(!expenses[key][day]) expenses[key][day]={remarks:'',amount:''};
   expenses[key][day][field]=value;
-  expenses[key][day].updatedBy = auth.currentUser?.email?.toLowerCase();
+  expenses[key][day].updatedBy=auth.currentUser?.email?.toLowerCase();
   await saveExpenses();
   if(field==='amount') calcTotal();
 };
 
 function calcTotal(){
-  // expenses object se calculate karo - DOM inputs pe depend nahi
-  const key = getKey();
-  let total = 0;
-  if(expenses[key]){
-    Object.values(expenses[key]).forEach(d=>{
-      total += parseFloat(d.amount)||0;
-    });
-  }
+  const key=getKharchaKey(); let total=0;
+  if(expenses[key]) Object.values(expenses[key]).forEach(d=>{ total+=parseFloat(d.amount)||0; });
   if(el('totalKharcha')) el('totalKharcha').textContent=total;
   if(el('footerTotal'))  el('footerTotal').textContent='₹'+total;
   updateBalance();
 }
 
 // ── CARRY ──
-window.onCarryChange = function(){
-  styleCarry(parseFloat(el('carryInput').value)||0);
-  saveCarryToDb();
-};
-
-function styleCarry(val){
-  const inp=el('carryInput');
-  if(inp) inp.className='carry-input'+(val>0?' positive':val<0?' negative':'');
-}
-
+window.onCarryChange=function(){ styleCarry(parseFloat(el('carryInput').value)||0); saveCarryToDb(); };
+function styleCarry(val){ const inp=el('carryInput'); if(inp) inp.className='carry-input'+(val>0?' positive':val<0?' negative':''); }
 function loadCarryForMonth(){
-  // value already set via realtime listener; just update label
   let m=parseInt(el('monthSelect')?.value||new Date().getMonth());
   let y=parseInt(el('yearSelect')?.value||new Date().getFullYear());
   m--; if(m<0){m=11;y--;}
@@ -786,7 +640,7 @@ function loadCarryForMonth(){
 
 // ── BALANCE ──
 function updateBalance(){
-  const mList = getCurrentMonthMembers();
+  const mList=getMonthList();
   const collected=mList.reduce((s,m)=>s+(m.paid||0),0);
   const adj=getAdj();
   const collect=collected+adj;
@@ -802,7 +656,7 @@ function updateBalance(){
 }
 
 // ── PRINT ──
-window.printAll = function(){
+window.printAll=function(){
   el('page-collection').style.display='block';
   el('page-kharcha').style.display='block';
   window.print();
@@ -810,66 +664,30 @@ window.printAll = function(){
   el('page-kharcha').style.display='';
 };
 
-// ── COLLECTION MONTH CHANGE ──
-window.onColMonthChange = function(){
-  renderMembers();
-  updateTotals();
-};
-
 // ── INIT ──
 function init(){
   const ms=el('monthSelect'), ys=el('yearSelect');
   const cms=el('colMonthSelect'), cys=el('colYearSelect');
   const yr=new Date().getFullYear();
-  const curMonth=new Date().getMonth();
-
+  const cm=new Date().getMonth();
   MONTHS.forEach((m,i)=>{
-    const o=document.createElement('option'); o.value=i; o.textContent=m; ms.appendChild(o);
-    const o2=document.createElement('option'); o2.value=i; o2.textContent=m; cms.appendChild(o2);
+    [ms,cms].forEach(sel=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; sel.appendChild(o); });
   });
   for(let y=yr-1;y<=yr+1;y++){
-    const o=document.createElement('option'); o.value=y; o.textContent=y; ys.appendChild(o);
-    const o2=document.createElement('option'); o2.value=y; o2.textContent=y; cys.appendChild(o2);
+    [ys,cys].forEach(sel=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); });
   }
-  ms.value=curMonth; ys.value=yr;
-  cms.value=curMonth; cys.value=yr;
-
+  ms.value=cm; ys.value=yr; cms.value=cm; cys.value=yr;
   el('newMemberName')?.addEventListener('keydown',e=>{ if(e.key==='Enter') window.addMember(); });
   startListeners();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded',init);
 </script>
 
-<!-- ✅ PWA: Service Worker Registration -->
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        console.log('☕ SW registered:', reg.scope);
-
-        // Check for new version
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              const toast = document.createElement('div');
-              toast.style.cssText = [
-                'position:fixed','bottom:16px','left:50%','transform:translateX(-50%)',
-                'background:#3d1e0a','color:#fff','padding:10px 20px','border-radius:20px',
-                "font-family:'Baloo 2',sans-serif",'font-size:0.85rem','font-weight:700',
-                'z-index:9999','box-shadow:0 4px 20px rgba(0,0,0,0.3)','cursor:pointer'
-              ].join(';');
-              toast.textContent = '🔄 Naya update aaya! Tap karo refresh karne ke liye.';
-              toast.onclick = () => window.location.reload();
-              document.body.appendChild(toast);
-              setTimeout(() => toast.remove(), 6000);
-            }
-          });
-        });
-      })
-      .catch(err => console.warn('SW failed:', err));
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW failed:',err));
   });
 }
 </script>
