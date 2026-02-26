@@ -317,16 +317,14 @@ function getColKey(){
 // ── GET CURRENT MONTH MEMBERS ──
 function getMonthList(){
   const key = getColKey();
-  if(!colData[key]){
-    colData[key] = members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
-  }
-  // sync names, handle added/removed members
-  const list = colData[key];
-  members.forEach((m,i)=>{
-    if(list[i]) list[i].name=m.name;
-    else list[i]={name:m.name,paid:0,status:null,updatedBy:null};
-  });
-  return list.slice(0,members.length);
+  const saved = colData[key] || [];
+  // Build list from members, use saved data if available
+  return members.map((m,i)=>({
+    name: m.name,
+    paid: saved[i]?.paid || 0,
+    status: saved[i]?.status || null,
+    updatedBy: saved[i]?.updatedBy || null
+  }));
 }
 
 // ── AUTH ──
@@ -373,19 +371,34 @@ function disableAdminUI(){
 function startListeners(){
   // Members base list
   let lastMemJson='';
+  let membersLoaded=false;
+  let colDataLoaded=false;
+
   onSnapshot(doc(db,'chai','members'), snap=>{
     const json=JSON.stringify(snap.exists()?snap.data().list:[]);
-    if(json!==lastMemJson){ lastMemJson=json; members=snap.exists()?(snap.data().list||[]):[];  renderMembers(); }
+    if(json!==lastMemJson){
+      lastMemJson=json;
+      members=snap.exists()?(snap.data().list||[]):[];
+    }
+    membersLoaded=true;
     el('loadingOverlay').classList.add('hidden');
     setSynced();
+    // Sirf tab render karo jab dono load ho chuke hon
+    if(membersLoaded && colDataLoaded) renderMembers();
   });
 
   // Collection month data
   let lastColJson='';
   onSnapshot(doc(db,'chai','colData'), snap=>{
     const json=JSON.stringify(snap.exists()?snap.data():{});
-    if(json!==lastColJson){ lastColJson=json; colData=snap.exists()?snap.data():{};  renderMembers(); }
+    if(json!==lastColJson){
+      lastColJson=json;
+      colData=snap.exists()?snap.data():{};
+    }
+    colDataLoaded=true;
     setSynced();
+    // Sirf tab render karo jab dono load ho chuke hon
+    if(membersLoaded && colDataLoaded) renderMembers();
   });
 
   // Expenses
@@ -503,9 +516,12 @@ window.addMember=async function(){
 window.tickMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
-  const list=getMonthList();
   const user=auth.currentUser?.email?.toLowerCase();
   const amt=getBase();
+  // Get current saved list or create fresh
+  const list = colData[key] ? [...colData[key]] : members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
+  // Ensure index exists
+  while(list.length<=i) list.push({name:members[list.length]?.name||'',paid:0,status:null,updatedBy:null});
   if(list[i].status==='paid'){list[i].paid=0;list[i].status=null;list[i].updatedBy=user;}
   else{list[i].status='paid';list[i].paid=amt;list[i].updatedBy=user;}
   colData[key]=list; await saveColData();
@@ -514,8 +530,9 @@ window.tickMember=async function(i){
 window.crossMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
-  const list=getMonthList();
   const user=auth.currentUser?.email?.toLowerCase();
+  const list = colData[key] ? [...colData[key]] : members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
+  while(list.length<=i) list.push({name:members[list.length]?.name||'',paid:0,status:null,updatedBy:null});
   list[i].status=list[i].status==='unpaid'?null:'unpaid';
   list[i].paid=0; list[i].updatedBy=user;
   colData[key]=list; await saveColData();
