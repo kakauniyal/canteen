@@ -1,5 +1,5 @@
 // ☕ Chai Group Manager — Service Worker
-const CACHE_NAME = 'chai-group-v2';
+const CACHE_NAME = 'chai-group-v3';
 const BASE = '/canteen';
 
 const SHELL_ASSETS = [
