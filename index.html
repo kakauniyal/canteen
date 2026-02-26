@@ -400,11 +400,16 @@ function startListeners(){
   onSnapshot(doc(db,'chai','adjust'), snap=>{
     if(snap.exists()){
       const a=snap.data();
-      currentAdj=parseFloat(a.amount)||0;
-      currentCommonAmt=parseInt(a.commonAmount)||300;
+      const newAdj=parseFloat(a.amount)||0;
+      const newAmt=parseInt(a.commonAmount)||300;
+      // Sirf tab update karo jab value actually change hui ho
+      if(newAdj!==currentAdj || newAmt!==currentCommonAmt){
+        currentAdj=newAdj;
+        currentCommonAmt=newAmt;
+        if(el('commonAmount')) el('commonAmount').value=currentCommonAmt;
+      }
       if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),currentAdj); }
       if(el('adjRemark'))  el('adjRemark').value=a.remark||'';
-      if(el('commonAmount')) el('commonAmount').value=currentCommonAmt;
       updateTotals();
     }
   });
@@ -440,6 +445,9 @@ async function saveAdjToDb(){
   const amt=parseFloat(el('adjAmount').value)||0;
   const rem=el('adjRemark').value||'';
   const commonAmt=parseInt(el('commonAmount')?.value)||300;
+  // Pehle global update karo taaki snapshot wapas aane par reset na ho
+  currentAdj=amt;
+  currentCommonAmt=commonAmt;
   setSyncing();
   await setDoc(doc(db,'chai','adjust'),{amount:amt,remark:rem,commonAmount:commonAmt});
   setSynced(); updateTotals();
