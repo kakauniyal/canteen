@@ -361,7 +361,7 @@ function enableAdminUI(){
 function disableAdminUI(){
   el('addMemberRow').style.display='none';
   el('amountSetter').style.display='none';
-  el('adjustBox').style.display='none';
+  el('adjustBox').style.display='flex';
   document.querySelectorAll('.action-btns').forEach(b=>b.style.display='none');
   document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input').forEach(i=>i.setAttribute('disabled','true'));
   document.querySelectorAll('.member-info').forEach(i=>i.style.cursor='default');
