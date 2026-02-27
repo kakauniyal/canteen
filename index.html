@@ -310,6 +310,7 @@ let colData  = {};      // {"2025-1": [{name,paid,status,updatedBy},...]}
 let expenses = {};
 let currentAdj = 0;
 let currentCommonAmt = 300;
+let carryData = {};
 
 function el(id){ return document.getElementById(id); }
 function setSyncing(){ el('syncDot').className='sync-dot syncing'; }
@@ -436,11 +437,9 @@ function startListeners(){
 
   // Carry
   onSnapshot(doc(db,'chai','carry'), snap=>{
-    if(snap.exists()){
-      const val=snap.data()[getKharchaKey()]||0;
-      if(el('carryInput')){ el('carryInput').value=val||''; styleCarry(val); }
-      updateBalance();
-    }
+    carryData = snap.exists() ? snap.data() : {};
+    loadCarryForMonth();
+    updateBalance();
   });
 }
 
@@ -620,6 +619,7 @@ function getKharchaKey(){ return `${el('yearSelect')?.value}-${el('monthSelect')
 window.updateMonth=function(){
   const key=getKharchaKey();
   if(!expenses[key]){ expenses[key]={}; for(let d=1;d<=31;d++) expenses[key][d]={remarks:'',amount:''}; }
+  loadCarryForMonth();
   renderExpenses();
 };
 
@@ -676,6 +676,11 @@ function calcTotal(){
 window.onCarryChange=function(){ styleCarry(parseFloat(el('carryInput').value)||0); saveCarryToDb(); };
 function styleCarry(val){ const inp=el('carryInput'); if(inp) inp.className='carry-input'+(val>0?' positive':val<0?' negative':''); }
 function loadCarryForMonth(){
+  const key = getKharchaKey();
+  const val = carryData[key] || 0;
+  if(el('carryInput')){ el('carryInput').value = val || ''; styleCarry(val); }
+
+  // Label - pichle mahine ka naam
   let m=parseInt(el('monthSelect')?.value||new Date().getMonth());
   let y=parseInt(el('yearSelect')?.value||new Date().getFullYear());
   m--; if(m<0){m=11;y--;}
