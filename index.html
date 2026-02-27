@@ -101,7 +101,9 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
 .member-row.paid .member-sub{color:var(--green);opacity:1;}
 .member-row.unpaid .member-sub{color:var(--red);opacity:1;}
 .name-edit-inp{border:none;border-bottom:2px solid var(--chai);background:transparent;font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:700;color:var(--brown);outline:none;width:100%;text-transform:uppercase;}
-.action-btns{display:flex;gap:6px;flex-shrink:0;}
+.action-btns{display:flex;gap:6px;flex-shrink:0;align-items:center;}
+.custom-amt-inp{width:70px;padding:4px 6px;border:2px solid var(--steam);border-radius:8px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;font-weight:800;text-align:center;outline:none;background:var(--cream);color:var(--chai-dark);}
+.custom-amt-inp:focus{border-color:var(--chai);}
 .tick-btn,.cross-btn{width:38px;height:38px;border:none;border-radius:50%;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;}
 .tick-btn{background:#2d7a4f22;color:var(--green);}
 .tick-btn.active{background:var(--green);color:#fff;}
@@ -283,6 +285,10 @@ const ADMIN_CONFIG = {
 };
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||null; }
 
+// Custom amount members (naam uppercase mein)
+const CUSTOM_MEMBERS = ['MR. RAJKUMAR MEHTO','MR. SACHIN KUMAR'];
+function isCustomMember(name){ return CUSTOM_MEMBERS.includes((name||'').toUpperCase()); }
+
 const firebaseConfig = {
   apiKey: "AIzaSyBZZuSnDc7nxcx-LCbxPw9ta4sqSiChYQE",
   authDomain: "canteen-105f0.firebaseapp.com",
@@ -361,6 +367,7 @@ function enableAdminUI(){
 function disableAdminUI(){
   el('addMemberRow').style.display='none';
   el('amountSetter').style.display='none';
+  // adjustBox sabko dikhta hai - sirf disabled hoga
   el('adjustBox').style.display='flex';
   document.querySelectorAll('.action-btns').forEach(b=>b.style.display='none');
   document.querySelectorAll('.remarks-input,.amount-input,.adj-inp,.rem-inp,.carry-input').forEach(i=>i.setAttribute('disabled','true'));
@@ -517,14 +524,19 @@ window.tickMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
-  const amt=getBase();
-  // Get current saved list or create fresh
+  // Custom member ka amount input se lo
+  const customInp=document.getElementById('customAmt_'+i);
+  const amt = customInp ? (parseFloat(customInp.value)||0) : getBase();
   const list = colData[key] ? [...colData[key]] : members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
-  // Ensure index exists
   while(list.length<=i) list.push({name:members[list.length]?.name||'',paid:0,status:null,updatedBy:null});
   if(list[i].status==='paid'){list[i].paid=0;list[i].status=null;list[i].updatedBy=user;}
   else{list[i].status='paid';list[i].paid=amt;list[i].updatedBy=user;}
   colData[key]=list; await saveColData();
+};
+
+// Custom amount input change - sirf local update, save tick par hoga
+window.onCustomAmtInput=function(i, val){
+  // Bas input field update hoga - tick karne par save hoga
 };
 
 window.crossMember=async function(i){
@@ -569,6 +581,11 @@ function renderMembers(){
     const initial=(m.name||'?').replace('Mr. ','').charAt(0).toUpperCase();
     const tagHtml=cfg?`<span class="admin-tag ${cfg.tag}">${cfg.label}</span>`:'';
     const sub=m.status==='paid'?`✓ ₹${m.paid} diya ${tagHtml}`:m.status==='unpaid'?`✗ Nahi diya ${tagHtml}`:`Expected ₹${base}`;
+    const isCustom = isCustomMember(m.name);
+    const customInp = isCustom && isAdmin ? `<input class="custom-amt-inp" type="number" 
+      id="customAmt_${i}" placeholder="₹" value="${m.paid||''}"
+      oninput="onCustomAmtInput(${i},this.value)"
+      onclick="event.stopPropagation()" />` : '';
     row.innerHTML=`
       <span class="member-no">${i+1}</span>
       <div class="member-avatar">${initial}</div>
@@ -577,6 +594,7 @@ function renderMembers(){
         <div class="member-sub">${sub}</div>
       </div>
       <div class="action-btns" style="display:${isAdmin?'flex':'none'}">
+        ${customInp}
         <button class="tick-btn ${m.status==='paid'?'active':''}" onclick="tickMember(${i})">✓</button>
         <button class="cross-btn ${m.status==='unpaid'?'active':''}" onclick="crossMember(${i})">✕</button>
       </div>`;
