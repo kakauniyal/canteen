@@ -194,12 +194,6 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
 
 <div id="page-collection" class="page active">
 
-  <div class="month-selector">
-    <label style="font-weight:600;font-size:.9rem">Mahina:</label>
-    <select id="colMonthSelect" onchange="onColMonthChange()"></select>
-    <select id="colYearSelect" onchange="onColMonthChange()"></select>
-  </div>
-
   <div class="total-banner">
     <div class="label">TOTAL COLLECTION</div>
     <div class="amount"><span>₹</span><span id="totalCollection">0</span></div>
@@ -631,8 +625,8 @@ function renderExpenses(){
   const key=getKharchaKey(), body=el('expenseBody');
   if(!body) return;
   body.innerHTML='';
-  const m=parseInt(el('monthSelect')?.value||new Date().getMonth());
-  const y=parseInt(el('yearSelect')?.value||new Date().getFullYear());
+  const m=parseInt(el('colMonthSelect')?.value||new Date().getMonth());
+  const y=parseInt(el('colYearSelect')?.value||new Date().getFullYear());
   const days=new Date(y,m+1,0).getDate();
   let total=0;
   for(let d=1;d<=days;d++){
