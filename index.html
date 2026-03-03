@@ -185,6 +185,13 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
 </div>
 
 <!-- COLLECTION PAGE -->
+<!-- SINGLE MONTH SELECTOR - controls both collection and kharcha -->
+<div style="background:var(--chai-dark);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;">
+  <label style="font-weight:700;font-size:0.9rem;color:#fff;">📅 Mahina:</label>
+  <select id="colMonthSelect" onchange="onMonthChange()" style="padding:6px 12px;border:none;border-radius:8px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:#fff;color:var(--brown);outline:none;font-weight:700;"></select>
+  <select id="colYearSelect" onchange="onMonthChange()" style="padding:6px 12px;border:none;border-radius:8px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:#fff;color:var(--brown);outline:none;font-weight:700;"></select>
+</div>
+
 <div id="page-collection" class="page active">
 
   <div class="month-selector">
@@ -234,11 +241,7 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
     </div>
   </div>
 
-  <div class="month-selector">
-    <label style="font-weight:600;font-size:.9rem">Mahina:</label>
-    <select id="monthSelect" onchange="updateMonth()"></select>
-    <select id="yearSelect" onchange="updateMonth()"></select>
-  </div>
+  <!-- Month selector upar hai - shared -->
 
   <div class="expense-table">
     <table>
@@ -493,8 +496,14 @@ window.switchTab=function(tab){
   if(tab==='kharcha') updateBalance();
 };
 
-// ── COLLECTION MONTH ──
-window.onColMonthChange=function(){ renderMembers(); updateTotals(); };
+// ── UNIFIED MONTH CHANGE ──
+window.onMonthChange=function(){
+  renderMembers();
+  updateTotals();
+  loadCarryForMonth();
+  renderExpenses();
+};
+window.onColMonthChange=window.onMonthChange;
 
 // ── ADJUST ──
 window.onAdjChange=function(inp){ currentAdj=parseFloat(inp.value)||0; styleAdj(inp,currentAdj); saveAdjToDb(); };
@@ -614,14 +623,9 @@ function updateTotals(){
 }
 
 // ── EXPENSES ──
-function getKharchaKey(){ return `${el('yearSelect')?.value}-${el('monthSelect')?.value}`; }
+function getKharchaKey(){ return `${el('colYearSelect')?.value}-${el('colMonthSelect')?.value}`; }
 
-window.updateMonth=function(){
-  const key=getKharchaKey();
-  if(!expenses[key]){ expenses[key]={}; for(let d=1;d<=31;d++) expenses[key][d]={remarks:'',amount:''}; }
-  loadCarryForMonth();
-  renderExpenses();
-};
+window.updateMonth=window.onMonthChange;
 
 function renderExpenses(){
   const key=getKharchaKey(), body=el('expenseBody');
@@ -679,10 +683,9 @@ function loadCarryForMonth(){
   const key = getKharchaKey();
   const val = carryData[key] || 0;
   if(el('carryInput')){ el('carryInput').value = val || ''; styleCarry(val); }
-
   // Label - pichle mahine ka naam
-  let m=parseInt(el('monthSelect')?.value||new Date().getMonth());
-  let y=parseInt(el('yearSelect')?.value||new Date().getFullYear());
+  let m=parseInt(el('colMonthSelect')?.value||new Date().getMonth());
+  let y=parseInt(el('colYearSelect')?.value||new Date().getFullYear());
   m--; if(m<0){m=11;y--;}
   if(el('carryMonthLabel')) el('carryMonthLabel').textContent=`${MONTHS[m]} ${y} se`;
 }
@@ -715,17 +718,16 @@ window.printAll=function(){
 
 // ── INIT ──
 function init(){
-  const ms=el('monthSelect'), ys=el('yearSelect');
   const cms=el('colMonthSelect'), cys=el('colYearSelect');
   const yr=new Date().getFullYear();
   const cm=new Date().getMonth();
   MONTHS.forEach((m,i)=>{
-    [ms,cms].forEach(sel=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; sel.appendChild(o); });
+    const o=document.createElement('option'); o.value=i; o.textContent=m; cms.appendChild(o);
   });
   for(let y=yr-1;y<=yr+1;y++){
-    [ys,cys].forEach(sel=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); });
+    const o=document.createElement('option'); o.value=y; o.textContent=y; cys.appendChild(o);
   }
-  ms.value=cm; ys.value=yr; cms.value=cm; cys.value=yr;
+  cms.value=cm; cys.value=yr;
   el('newMemberName')?.addEventListener('keydown',e=>{ if(e.key==='Enter') window.addMember(); });
   startListeners();
 }
