@@ -217,6 +217,7 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
       autocapitalize="characters" style="text-transform:uppercase"
       oninput="this.value=this.value.toUpperCase()" />
     <button onclick="addMember()">+ Jodo</button>
+    <button onclick="forceReorder()" style="background:#8b5a1e;white-space:nowrap;">🔃 Fix Order</button>
   </div>
 
   <div class="members-list" id="membersList"></div>
@@ -284,32 +285,32 @@ function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||
 
 // ── DESIRED ORDER ──
 const DESIRED_ORDER = [
-  'Mr. Sanjeev Kumar',
-  'Mr. Rajkumar Sharma',
-  'Mr. Prem Uniyal',
-  'Mr. Raj Shekhar',
-  'Mr. Satybeer',
-  'Mr. Narendra Pardhan',
-  'Mr. Alok Ji',
-  'Mr. Pankaj Kumar',
-  'Mr. Raju Chudhary',
-  'Mr. Kamlesh Kumar',
-  'Mr. Sachin Kumar',
-  'Mr. Rajkumar Mehto',
-  'Mr. Bhushan Mehta',
-  'Mr. Sanjay Kumar',
-  'Mr. Manoj Maint'
+  'MR.SANJEEV KUMAR',
+  'MR. RAJKUMAR SHARMA',
+  'MR. PREM UNIYAL',
+  'MR. RAJ SHEKHAR',
+  'MR. SATYABEER',
+  'MR. NARENDRA PRADHAN',
+  'MR. ALOK JI',
+  'MR. PANKAJ KUMAR',
+  'MR. RAJU CHOUDHARY',
+  'MR. KAMLESH KUMAR',
+  'MR. SACHIN KUMAR',
+  'MR. RAJKUMAR MEHTO',
+  'MR. BHUSHAN KUMAR',
+  'MR. SANJAY KUMAR',
+  'MR. MANOJ KUMAR'
 ];
 
 function reorderMembers(list){
   const ordered = [];
   DESIRED_ORDER.forEach(desiredName=>{
-    const found = list.find(m=>(m.name||'').toUpperCase()===desiredName.toUpperCase());
+    const found = list.find(m=>(m.name||'').toUpperCase().trim()===desiredName.toUpperCase().trim());
     if(found) ordered.push(found);
   });
   // Any extra members not in desired order - append at end
   list.forEach(m=>{
-    const inOrder = DESIRED_ORDER.some(d=>d.toUpperCase()===(m.name||'').toUpperCase());
+    const inOrder = DESIRED_ORDER.some(d=>d.toUpperCase().trim()===(m.name||'').toUpperCase().trim());
     if(!inOrder) ordered.push(m);
   });
   return ordered;
@@ -417,19 +418,16 @@ function startListeners(){
     const rawList = snap.exists()?(snap.data().list||[]):[];
     const reordered = reorderMembers(rawList);
     const json=JSON.stringify(reordered);
-    if(json!==lastMemJson){
-      lastMemJson=json;
-      members=reordered;
-      // Auto-save reordered list to Firebase if admin and order changed
-      const origJson=JSON.stringify(rawList);
-      if(isAdmin && json!==origJson){
-        setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
-      }
+    lastMemJson=json;
+    members=reordered;
+    // Hamesha check karo - agar order alag hai toh Firebase update karo
+    const origJson=JSON.stringify(rawList);
+    if(isAdmin && json!==origJson){
+      setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
     }
     membersLoaded=true;
     el('loadingOverlay').classList.add('hidden');
     setSynced();
-    // Sirf tab render karo jab dono load ho chuke hon
     if(membersLoaded && colDataLoaded) renderMembers();
   });
 
@@ -555,6 +553,16 @@ window.onAmountChange=function(){
 function getBase(){ return currentCommonAmt; }
 
 // ── MEMBERS ──
+// ── FORCE REORDER ──
+window.forceReorder=async function(){
+  if(!isAdmin){ alert('Admin login karo pehle!'); return; }
+  const reordered = reorderMembers(members);
+  members = reordered;
+  await setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
+  renderMembers();
+  alert('Order fix ho gaya! ✅');
+};
+
 window.addMember=async function(){
   if(!isAdmin) return;
   const inp=el('newMemberName'),name=inp.value.trim().toUpperCase();
