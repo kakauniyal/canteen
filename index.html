@@ -282,8 +282,39 @@ const ADMIN_CONFIG = {
 };
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||null; }
 
-// Custom amount members (naam uppercase mein)
-const CUSTOM_MEMBERS = ['MR. RAJKUMAR MEHTO','MR. SACHIN KUMAR','MR. KAMLESH KUMAR'];
+// ── DESIRED ORDER ──
+const DESIRED_ORDER = [
+  'Mr. Sanjeev Kumar',
+  'Mr. Rajkumar Sharma',
+  'Mr. Prem Uniyal',
+  'Mr. Raj Shekhar',
+  'Mr. Satybeer',
+  'Mr. Narendra Pardhan',
+  'Mr. Alok Ji',
+  'Mr. Pankaj Kumar',
+  'Mr. Raju Chudhary',
+  'Mr. Kamlesh Kumar',
+  'Mr. Sachin Kumar',
+  'Mr. Rajkumar Mehto',
+  'Mr. Bhushan Mehta',
+  'Mr. Sanjay Kumar',
+  'Mr. Manoj Maint'
+];
+
+function reorderMembers(list){
+  const ordered = [];
+  DESIRED_ORDER.forEach(desiredName=>{
+    const found = list.find(m=>(m.name||'').toUpperCase()===desiredName.toUpperCase());
+    if(found) ordered.push(found);
+  });
+  // Any extra members not in desired order - append at end
+  list.forEach(m=>{
+    const inOrder = DESIRED_ORDER.some(d=>d.toUpperCase()===(m.name||'').toUpperCase());
+    if(!inOrder) ordered.push(m);
+  });
+  return ordered;
+}
+const CUSTOM_MEMBERS = ['MR. KAMLESH KUMAR','MR. SACHIN KUMAR','MR. RAJKUMAR MEHTO'];
 function isCustomMember(name){ return CUSTOM_MEMBERS.includes((name||'').toUpperCase()); }
 
 const firebaseConfig = {
@@ -318,17 +349,20 @@ function getColKey(){
   return `${el('colYearSelect')?.value||new Date().getFullYear()}-${el('colMonthSelect')?.value||new Date().getMonth()}`;
 }
 
-// ── GET CURRENT MONTH MEMBERS ──
+// ── GET CURRENT MONTH MEMBERS (naam-based) ──
 function getMonthList(){
   const key = getColKey();
   const saved = colData[key] || [];
-  // Build list from members, use saved data if available
-  return members.map((m,i)=>({
-    name: m.name,
-    paid: saved[i]?.paid || 0,
-    status: saved[i]?.status || null,
-    updatedBy: saved[i]?.updatedBy || null
-  }));
+  // naam-based match: index se nahi, naam se dhundho
+  return members.map((m)=>{
+    const found = saved.find(s=>(s.name||'').toUpperCase()===(m.name||'').toUpperCase());
+    return {
+      name: m.name,
+      paid: found?.paid || 0,
+      status: found?.status || null,
+      updatedBy: found?.updatedBy || null
+    };
+  });
 }
 
 // ── AUTH ──
@@ -380,10 +414,17 @@ function startListeners(){
   let colDataLoaded=false;
 
   onSnapshot(doc(db,'chai','members'), snap=>{
-    const json=JSON.stringify(snap.exists()?snap.data().list:[]);
+    const rawList = snap.exists()?(snap.data().list||[]):[];
+    const reordered = reorderMembers(rawList);
+    const json=JSON.stringify(reordered);
     if(json!==lastMemJson){
       lastMemJson=json;
-      members=snap.exists()?(snap.data().list||[]):[];
+      members=reordered;
+      // Auto-save reordered list to Firebase if admin and order changed
+      const origJson=JSON.stringify(rawList);
+      if(isAdmin && json!==origJson){
+        setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
+      }
     }
     membersLoaded=true;
     el('loadingOverlay').classList.add('hidden');
@@ -522,17 +563,39 @@ window.addMember=async function(){
   await saveMembers(); inp.value='';
 };
 
+// ── NAAM-BASED LIST BUILDER ──
+// Purana index-based data bhi handle karta hai + naya naam-based bhi
+function buildNamedList(key){
+  const saved = colData[key] || [];
+  // Start fresh with all members having default values
+  const list = members.map(m=>({name:m.name, paid:0, status:null, updatedBy:null}));
+  // Merge saved data by name
+  saved.forEach(s=>{
+    if(!s.name) return;
+    const idx = list.findIndex(m=>(m.name||'').toUpperCase()===(s.name||'').toUpperCase());
+    if(idx!==-1){
+      list[idx].paid = s.paid||0;
+      list[idx].status = s.status||null;
+      list[idx].updatedBy = s.updatedBy||null;
+    }
+  });
+  return list;
+}
+
 window.tickMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
+  const memberName=members[i]?.name||'';
   // Custom member ka amount input se lo
   const customInp=document.getElementById('customAmt_'+i);
   const amt = customInp ? (parseFloat(customInp.value)||0) : getBase();
-  const list = colData[key] ? [...colData[key]] : members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
-  while(list.length<=i) list.push({name:members[list.length]?.name||'',paid:0,status:null,updatedBy:null});
-  if(list[i].status==='paid'){list[i].paid=0;list[i].status=null;list[i].updatedBy=user;}
-  else{list[i].status='paid';list[i].paid=amt;list[i].updatedBy=user;}
+  // naam-based list banao
+  let list = buildNamedList(key);
+  const idx = list.findIndex(s=>(s.name||'').toUpperCase()===memberName.toUpperCase());
+  if(idx===-1) return;
+  if(list[idx].status==='paid'){list[idx].paid=0;list[idx].status=null;list[idx].updatedBy=user;}
+  else{list[idx].status='paid';list[idx].paid=amt;list[idx].updatedBy=user;}
   colData[key]=list; await saveColData();
 };
 
@@ -545,10 +608,12 @@ window.crossMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
-  const list = colData[key] ? [...colData[key]] : members.map(m=>({name:m.name,paid:0,status:null,updatedBy:null}));
-  while(list.length<=i) list.push({name:members[list.length]?.name||'',paid:0,status:null,updatedBy:null});
-  list[i].status=list[i].status==='unpaid'?null:'unpaid';
-  list[i].paid=0; list[i].updatedBy=user;
+  const memberName=members[i]?.name||'';
+  let list = buildNamedList(key);
+  const idx = list.findIndex(s=>(s.name||'').toUpperCase()===memberName.toUpperCase());
+  if(idx===-1) return;
+  list[idx].status=list[idx].status==='unpaid'?null:'unpaid';
+  list[idx].paid=0; list[idx].updatedBy=user;
   colData[key]=list; await saveColData();
 };
 
