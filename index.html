@@ -350,20 +350,32 @@ function getColKey(){
   return `${el('colYearSelect')?.value||new Date().getFullYear()}-${el('colMonthSelect')?.value||new Date().getMonth()}`;
 }
 
-// ── GET CURRENT MONTH MEMBERS (naam-based) ──
+// ── GET CURRENT MONTH MEMBERS (naam-based + sorted) ──
+const FIXED_FIRST = 'MR.SANJEEV KUMAR';
 function getMonthList(){
   const key = getColKey();
   const saved = colData[key] || [];
-  // naam-based match: index se nahi, naam se dhundho
-  return members.map((m)=>{
+  // naam-based match
+  const list = members.map((m)=>{
     const found = saved.find(s=>(s.name||'').toUpperCase()===(m.name||'').toUpperCase());
     return {
       name: m.name,
       paid: found?.paid || 0,
       status: found?.status || null,
-      updatedBy: found?.updatedBy || null
+      updatedBy: found?.updatedBy || null,
+      paidAt: found?.paidAt || null
     };
   });
+
+  // Sort: Sanjeev always first, then paid (by paidAt asc), then unpaid/pending
+  const sanjeev = list.filter(m=>(m.name||'').toUpperCase().trim()===FIXED_FIRST.toUpperCase().trim());
+  const paid    = list.filter(m=>m.status==='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
+  const others  = list.filter(m=>m.status!=='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
+
+  // paid ko paidAt ke hisaab se sort karo (pehle diya = upar)
+  paid.sort((a,b)=>(a.paidAt||0)-(b.paidAt||0));
+
+  return [...sanjeev, ...paid, ...others];
 }
 
 // ── AUTH ──
@@ -585,6 +597,7 @@ function buildNamedList(key){
       list[idx].paid = s.paid||0;
       list[idx].status = s.status||null;
       list[idx].updatedBy = s.updatedBy||null;
+      list[idx].paidAt = s.paidAt||null;
     }
   });
   return list;
@@ -594,7 +607,9 @@ window.tickMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
-  const memberName=members[i]?.name||'';
+  // i ab rendered list ka index hai - rendered list se naam lo
+  const rendered=getMonthList();
+  const memberName=rendered[i]?.name||'';
   // Custom member ka amount input se lo
   const customInp=document.getElementById('customAmt_'+i);
   const amt = customInp ? (parseFloat(customInp.value)||0) : getBase();
@@ -602,8 +617,13 @@ window.tickMember=async function(i){
   let list = buildNamedList(key);
   const idx = list.findIndex(s=>(s.name||'').toUpperCase()===memberName.toUpperCase());
   if(idx===-1) return;
-  if(list[idx].status==='paid'){list[idx].paid=0;list[idx].status=null;list[idx].updatedBy=user;}
-  else{list[idx].status='paid';list[idx].paid=amt;list[idx].updatedBy=user;}
+  if(list[idx].status==='paid'){
+    // Unpay - paidAt bhi clear karo
+    list[idx].paid=0; list[idx].status=null; list[idx].updatedBy=user; list[idx].paidAt=null;
+  } else {
+    // Pay - timestamp save karo
+    list[idx].status='paid'; list[idx].paid=amt; list[idx].updatedBy=user; list[idx].paidAt=Date.now();
+  }
   colData[key]=list; await saveColData();
 };
 
@@ -616,30 +636,41 @@ window.crossMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
-  const memberName=members[i]?.name||'';
+  const rendered=getMonthList();
+  const memberName=rendered[i]?.name||'';
   let list = buildNamedList(key);
   const idx = list.findIndex(s=>(s.name||'').toUpperCase()===memberName.toUpperCase());
   if(idx===-1) return;
   list[idx].status=list[idx].status==='unpaid'?null:'unpaid';
-  list[idx].paid=0; list[idx].updatedBy=user;
+  list[idx].paid=0; list[idx].updatedBy=user; list[idx].paidAt=null;
   colData[key]=list; await saveColData();
 };
 
 window.startEdit=function(i){
   if(!isAdmin) return;
+  const rendered=getMonthList();
+  const currentName=rendered[i]?.name||'';
   const div=el('info_'+i);
-  div.innerHTML=`<input id="editInp_${i}" class="name-edit-inp" type="text" value="${members[i].name}"
-    oninput="this.value=this.value.toUpperCase()" onblur="saveEdit(${i})"
+  div.innerHTML=`<input id="editInp_${i}" class="name-edit-inp" type="text" value="${currentName}"
+    oninput="this.value=this.value.toUpperCase()" onblur="saveEdit(${i},'${currentName}')"
     onkeydown="if(event.key==='Enter')this.blur()"/>`;
   setTimeout(()=>{ const inp=el('editInp_'+i); if(inp){inp.focus();inp.select();} },50);
 };
 
-window.saveEdit=async function(i){
+window.saveEdit=async function(i, oldName){
   const inp=el('editInp_'+i); if(!inp) return;
   const name=inp.value.trim().toUpperCase();
-  if(name){
-    members[i].name=name;
-    Object.keys(colData).forEach(k=>{ if(colData[k][i]) colData[k][i].name=name; });
+  if(name && oldName){
+    // members array mein naam update karo
+    const mi=members.findIndex(m=>(m.name||'').toUpperCase()===(oldName||'').toUpperCase());
+    if(mi!==-1) members[mi].name=name;
+    // colData mein bhi naam update karo (naam-based)
+    Object.keys(colData).forEach(k=>{
+      if(Array.isArray(colData[k])){
+        const ci=colData[k].findIndex(s=>(s.name||'').toUpperCase()===(oldName||'').toUpperCase());
+        if(ci!==-1) colData[k][ci].name=name;
+      }
+    });
   }
   await saveMembers(); await saveColData();
 };
