@@ -282,38 +282,28 @@ const ADMIN_CONFIG = {
 };
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||null; }
 
+// Custom amount members (naam uppercase mein)
 // ── DESIRED ORDER ──
 const DESIRED_ORDER = [
-  'MR.SANJEEV KUMAR',
-  'MR. RAJKUMAR SHARMA',
-  'MR. PREM UNIYAL',
-  'MR. RAJ SHEKHAR',
-  'MR. SATYABEER',
-  'MR. NARENDRA PRADHAN',
-  'MR. ALOK JI',
-  'MR. PANKAJ KUMAR',
-  'MR. RAJU CHOUDHARY',
-  'MR. KAMLESH KUMAR',
-  'MR. SACHIN KUMAR',
-  'MR. RAJKUMAR MEHTO',
-  'MR. BHUSHAN KUMAR',
-  'MR. SANJAY KUMAR',
-  'MR. MANOJ KUMAR'
+  'MR.SANJEEV KUMAR','MR. RAJKUMAR SHARMA','MR. PREM UNIYAL',
+  'MR. RAJ SHEKHAR','MR. SATYABEER','MR. NARENDRA PRADHAN',
+  'MR. ALOK JI','MR. PANKAJ KUMAR','MR. RAJU CHOUDHARY',
+  'MR. KAMLESH KUMAR','MR. SACHIN KUMAR','MR. RAJKUMAR MEHTO',
+  'MR. BHUSHAN KUMAR','MR. SANJAY KUMAR','MR. MANOJ KUMAR'
 ];
-
 function reorderMembers(list){
-  const ordered = [];
-  DESIRED_ORDER.forEach(desiredName=>{
-    const found = list.find(m=>(m.name||'').toUpperCase().trim()===desiredName.toUpperCase().trim());
-    if(found) ordered.push(found);
+  const ordered=[];
+  DESIRED_ORDER.forEach(d=>{
+    const f=list.find(m=>(m.name||'').toUpperCase().trim()===d.toUpperCase().trim());
+    if(f) ordered.push(f);
   });
-  // Any extra members not in desired order - append at end
   list.forEach(m=>{
-    const inOrder = DESIRED_ORDER.some(d=>d.toUpperCase().trim()===(m.name||'').toUpperCase().trim());
+    const inOrder=DESIRED_ORDER.some(d=>d.toUpperCase().trim()===(m.name||'').toUpperCase().trim());
     if(!inOrder) ordered.push(m);
   });
   return ordered;
 }
+
 const CUSTOM_MEMBERS = ['MR. KAMLESH KUMAR','MR. SACHIN KUMAR','MR. RAJKUMAR MEHTO'];
 function isCustomMember(name){ return CUSTOM_MEMBERS.includes((name||'').toUpperCase()); }
 
@@ -339,6 +329,7 @@ let expenses = {};
 let currentAdj = 0;
 let currentCommonAmt = 300;
 let carryData = {};
+let adjustData = {};    // {"2025-3": {amount, remark}, ...} month-wise adjust
 
 function el(id){ return document.getElementById(id); }
 function setSyncing(){ el('syncDot').className='sync-dot syncing'; }
@@ -349,12 +340,11 @@ function getColKey(){
   return `${el('colYearSelect')?.value||new Date().getFullYear()}-${el('colMonthSelect')?.value||new Date().getMonth()}`;
 }
 
-// ── GET CURRENT MONTH MEMBERS (naam-based + sorted) ──
+// ── GET CURRENT MONTH MEMBERS (naam-based + dynamic pay-order) ──
 const FIXED_FIRST = 'MR.SANJEEV KUMAR';
 function getMonthList(){
   const key = getColKey();
   const saved = colData[key] || [];
-  // naam-based match
   const list = members.map((m)=>{
     const found = saved.find(s=>(s.name||'').toUpperCase()===(m.name||'').toUpperCase());
     return {
@@ -365,15 +355,10 @@ function getMonthList(){
       paidAt: found?.paidAt || null
     };
   });
-
-  // Sort: Sanjeev always first, then paid (by paidAt asc), then unpaid/pending
   const sanjeev = list.filter(m=>(m.name||'').toUpperCase().trim()===FIXED_FIRST.toUpperCase().trim());
   const paid    = list.filter(m=>m.status==='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
   const others  = list.filter(m=>m.status!=='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
-
-  // paid ko paidAt ke hisaab se sort karo (pehle diya = upar)
   paid.sort((a,b)=>(a.paidAt||0)-(b.paidAt||0));
-
   return [...sanjeev, ...paid, ...others];
 }
 
@@ -431,7 +416,6 @@ function startListeners(){
     const json=JSON.stringify(reordered);
     lastMemJson=json;
     members=reordered;
-    // Hamesha check karo - agar order alag hai toh Firebase update karo
     const origJson=JSON.stringify(rawList);
     if(isAdmin && json!==origJson){
       setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
@@ -464,20 +448,17 @@ function startListeners(){
     setSynced();
   });
 
-  // Adjust
+  // Adjust - month-wise
   onSnapshot(doc(db,'chai','adjust'), snap=>{
     if(snap.exists()){
       const a=snap.data();
-      const newAdj=parseFloat(a.amount)||0;
       const newAmt=parseInt(a.commonAmount)||300;
-      // Sirf tab update karo jab value actually change hui ho
-      if(newAdj!==currentAdj || newAmt!==currentCommonAmt){
-        currentAdj=newAdj;
+      adjustData = a.byMonth || {};
+      if(newAmt!==currentCommonAmt){
         currentCommonAmt=newAmt;
         if(el('commonAmount')) el('commonAmount').value=currentCommonAmt;
       }
-      if(el('adjAmount')){ el('adjAmount').value=a.amount||''; styleAdj(el('adjAmount'),currentAdj); }
-      if(el('adjRemark'))  el('adjRemark').value=a.remark||'';
+      loadAdjForMonth();
       updateTotals();
     }
   });
@@ -511,11 +492,13 @@ window.saveAdjToDb = async function(){
   const amt=parseFloat(el('adjAmount').value)||0;
   const rem=el('adjRemark').value||'';
   const commonAmt=parseInt(el('commonAmount')?.value)||300;
-  // Pehle global update karo taaki snapshot wapas aane par reset na ho
   currentAdj=amt;
   currentCommonAmt=commonAmt;
+  const key=getColKey();
+  if(!adjustData) adjustData={};
+  adjustData[key]={amount:amt, remark:rem};
   setSyncing();
-  await setDoc(doc(db,'chai','adjust'),{amount:amt,remark:rem,commonAmount:commonAmt});
+  await setDoc(doc(db,'chai','adjust'),{commonAmount:commonAmt, byMonth: adjustData});
   setSynced(); updateTotals();
 }
 window.saveAdj=saveAdjToDb;
@@ -542,6 +525,7 @@ window.switchTab=function(tab){
 
 // ── UNIFIED MONTH CHANGE ──
 window.onMonthChange=function(){
+  loadAdjForMonth();
   renderMembers();
   updateTotals();
   loadCarryForMonth();
@@ -550,9 +534,18 @@ window.onMonthChange=function(){
 window.onColMonthChange=window.onMonthChange;
 
 // ── ADJUST ──
-window.onAdjChange=function(inp){ currentAdj=parseFloat(inp.value)||0; styleAdj(inp,currentAdj); saveAdjToDb(); };
+window.onAdjChange=function(inp){ currentAdj=parseFloat(inp.value)||0; styleAdj(inp,currentAdj); updateTotals(); saveAdjToDb(); };
 window.styleAdj = function(inp,v){ inp.className='adj-inp'+(v>0?' plus':v<0?' minus':''); }
 function getAdj(){ return currentAdj; }
+
+// ── LOAD ADJUST FOR CURRENT MONTH ──
+function loadAdjForMonth(){
+  const key=getColKey();
+  const monthAdj = adjustData[key] || {amount:0, remark:''};
+  currentAdj = parseFloat(monthAdj.amount)||0;
+  if(el('adjAmount')){ el('adjAmount').value=monthAdj.amount||''; styleAdj(el('adjAmount'),currentAdj); }
+  if(el('adjRemark'))  el('adjRemark').value=monthAdj.remark||'';
+}
 
 // ── AMOUNT ──
 let amtTimer=null;
@@ -564,31 +557,10 @@ window.onAmountChange=function(){
 function getBase(){ return currentCommonAmt; }
 
 // ── MEMBERS ──
-// ── FORCE REORDER ──
-window.forceReorder=async function(){
-  if(!isAdmin){ alert('Admin login karo pehle!'); return; }
-  const reordered = reorderMembers(members);
-  members = reordered;
-  await setDoc(doc(db,'chai','members'),{list:members.map(m=>({name:m.name}))});
-  renderMembers();
-  alert('Order fix ho gaya! ✅');
-};
-
-window.addMember=async function(){
-  if(!isAdmin) return;
-  const inp=el('newMemberName'),name=inp.value.trim().toUpperCase();
-  if(!name) return;
-  members.push({name:'Mr. '+name});
-  await saveMembers(); inp.value='';
-};
-
 // ── NAAM-BASED LIST BUILDER ──
-// Purana index-based data bhi handle karta hai + naya naam-based bhi
 function buildNamedList(key){
   const saved = colData[key] || [];
-  // Start fresh with all members having default values
-  const list = members.map(m=>({name:m.name, paid:0, status:null, updatedBy:null}));
-  // Merge saved data by name
+  const list = members.map(m=>({name:m.name, paid:0, status:null, updatedBy:null, paidAt:null}));
   saved.forEach(s=>{
     if(!s.name) return;
     const idx = list.findIndex(m=>(m.name||'').toUpperCase()===(s.name||'').toUpperCase());
@@ -602,25 +574,28 @@ function buildNamedList(key){
   return list;
 }
 
+window.addMember=async function(){
+  if(!isAdmin) return;
+  const inp=el('newMemberName'),name=inp.value.trim().toUpperCase();
+  if(!name) return;
+  members.push({name:'Mr. '+name});
+  await saveMembers(); inp.value='';
+};
+
 window.tickMember=async function(i){
   if(!isAdmin) return;
   const key=getColKey();
   const user=auth.currentUser?.email?.toLowerCase();
-  // i ab rendered list ka index hai - rendered list se naam lo
   const rendered=getMonthList();
   const memberName=rendered[i]?.name||'';
-  // Custom member ka amount input se lo
   const customInp=document.getElementById('customAmt_'+i);
   const amt = customInp ? (parseFloat(customInp.value)||0) : getBase();
-  // naam-based list banao
   let list = buildNamedList(key);
   const idx = list.findIndex(s=>(s.name||'').toUpperCase()===memberName.toUpperCase());
   if(idx===-1) return;
   if(list[idx].status==='paid'){
-    // Unpay - paidAt bhi clear karo
     list[idx].paid=0; list[idx].status=null; list[idx].updatedBy=user; list[idx].paidAt=null;
   } else {
-    // Pay - timestamp save karo
     list[idx].status='paid'; list[idx].paid=amt; list[idx].updatedBy=user; list[idx].paidAt=Date.now();
   }
   colData[key]=list; await saveColData();
@@ -660,10 +635,8 @@ window.saveEdit=async function(i, oldName){
   const inp=el('editInp_'+i); if(!inp) return;
   const name=inp.value.trim().toUpperCase();
   if(name && oldName){
-    // members array mein naam update karo
     const mi=members.findIndex(m=>(m.name||'').toUpperCase()===(oldName||'').toUpperCase());
     if(mi!==-1) members[mi].name=name;
-    // colData mein bhi naam update karo (naam-based)
     Object.keys(colData).forEach(k=>{
       if(Array.isArray(colData[k])){
         const ci=colData[k].findIndex(s=>(s.name||'').toUpperCase()===(oldName||'').toUpperCase());
