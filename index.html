@@ -341,7 +341,6 @@ function getColKey(){
 }
 
 // ── GET CURRENT MONTH MEMBERS (naam-based + dynamic pay-order) ──
-const FIXED_FIRST = 'MR.SANJEEV KUMAR';
 function getMonthList(){
   const key = getColKey();
   const saved = colData[key] || [];
@@ -355,11 +354,10 @@ function getMonthList(){
       paidAt: found?.paidAt || null
     };
   });
-  const sanjeev = list.filter(m=>(m.name||'').toUpperCase().trim()===FIXED_FIRST.toUpperCase().trim());
-  const paid    = list.filter(m=>m.status==='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
-  const others  = list.filter(m=>m.status!=='paid' && (m.name||'').toUpperCase().trim()!==FIXED_FIRST.toUpperCase().trim());
+  const paid    = list.filter(m=>m.status==='paid');
+  const others  = list.filter(m=>m.status!=='paid');
   paid.sort((a,b)=>(a.paidAt||0)-(b.paidAt||0));
-  return [...sanjeev, ...paid, ...others];
+  return [...paid, ...others];
 }
 
 // ── AUTH ──
