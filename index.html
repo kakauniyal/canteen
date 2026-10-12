@@ -84,6 +84,7 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
 .exp-by-kakuniyal td{border-left:3px solid #e67e22!important;}
 .exp-by-arvind td{border-left:3px solid #27ae60!important;}
 .exp-by-bhushan td{border-left:3px solid #2980b9!important;}
+.exp-by-shekhar td{border-left:3px solid #27ae60!important;}
 
 .members-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
 .member-row{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;border:2px solid transparent;transition:all .25s;}
@@ -184,7 +185,6 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
   <button class="tab-btn" onclick="switchTab('kharcha')">📋 Kharcha</button>
 </div>
 
-<!-- COLLECTION PAGE -->
 <!-- SINGLE MONTH SELECTOR - controls both collection and kharcha -->
 <div style="background:var(--chai-dark);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;">
   <label style="font-weight:700;font-size:0.9rem;color:#fff;">📅 Mahina:</label>
@@ -192,6 +192,7 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
   <select id="colYearSelect" onchange="onMonthChange()" style="padding:6px 12px;border:none;border-radius:8px;font-family:'Baloo 2',sans-serif;font-size:0.9rem;background:#fff;color:var(--brown);outline:none;font-weight:700;"></select>
 </div>
 
+<!-- COLLECTION PAGE -->
 <div id="page-collection" class="page active">
 
   <div class="total-banner">
@@ -235,8 +236,6 @@ header p{font-size:0.85rem;opacity:.85;margin-bottom:12px;}
     </div>
   </div>
 
-  <!-- Month selector upar hai - shared -->
-
   <div class="expense-table">
     <table>
       <thead><tr><th>Tarikh</th><th>Remarks</th><th>₹ Rupees</th></tr></thead>
@@ -276,13 +275,12 @@ import { getFirestore, doc, onSnapshot, setDoc, getDoc }
 // ── CONFIG ──
 const ADMIN_EMAILS = ["kakuniyal@gmail.com","bhel.raaj2483@gmail.com","bhushanmehta08@gmail.com"];
 const ADMIN_CONFIG = {
-  "kakuniyal@gmail.com":    {cssClass:"by-kakuniyal",tag:"tag-kakuniyal",label:"Kakuniyal",color:"#e67e22"},
-  "bhel.raj2483@gmail.com":  {cssClass:"by-arvind",   tag:"tag-arvind",   label:"Shekhar",  color:"#27ae60"},
-  "bhushanmehta08@gmail.com":{cssClass:"by-bhushan",  tag:"tag-bhushan",  label:"Bhushan",  color:"#2980b9"}
+  "kakuniyal@gmail.com":      {cssClass:"by-kakuniyal",tag:"tag-kakuniyal",label:"Kakuniyal",color:"#e67e22"},
+  "bhel.raaj2483@gmail.com":  {cssClass:"by-arvind",   tag:"tag-arvind",   label:"Shekhar",  color:"#27ae60"},
+  "bhushanmehta08@gmail.com": {cssClass:"by-bhushan",  tag:"tag-bhushan",  label:"Bhushan",  color:"#2980b9"}
 };
 function getAdminConfig(email){ return ADMIN_CONFIG[(email||'').toLowerCase()]||null; }
 
-// Custom amount members (naam uppercase mein)
 // ── DESIRED ORDER ──
 const DESIRED_ORDER = [
   'MR.SANJEEV KUMAR','MR. RAJKUMAR SHARMA','MR. PREM UNIYAL',
@@ -304,6 +302,7 @@ function reorderMembers(list){
   return ordered;
 }
 
+// Custom amount members (naam uppercase mein)
 const CUSTOM_MEMBERS = ['MR. KAMLESH KUMAR','MR. SACHIN KUMAR','MR. RAJKUMAR MEHTO'];
 function isCustomMember(name){ return CUSTOM_MEMBERS.includes((name||'').toUpperCase()); }
 
@@ -365,7 +364,7 @@ window.adminLogin  = async()=>{ try{ await signInWithPopup(auth,new GoogleAuthPr
 window.adminLogout = async()=>{ await signOut(auth); };
 
 onAuthStateChanged(auth, user=>{
-  if(user && ADMIN_EMAILS.includes(user.email.toLowerCase())){
+  if(user && ADMIN_EMAILS.includes((user.email||'').toLowerCase())){
     isAdmin=true;
     el('adminBadge').style.display='inline-block';
     el('adminBadge').textContent='👑 Admin';
@@ -403,11 +402,11 @@ function disableAdminUI(){
 
 // ── LISTENERS ──
 function startListeners(){
-  // Members base list
   let lastMemJson='';
   let membersLoaded=false;
   let colDataLoaded=false;
 
+  // Members base list
   onSnapshot(doc(db,'chai','members'), snap=>{
     const rawList = snap.exists()?(snap.data().list||[]):[];
     const reordered = reorderMembers(rawList);
@@ -499,7 +498,7 @@ window.saveAdjToDb = async function(){
   await setDoc(doc(db,'chai','adjust'),{commonAmount:commonAmt, byMonth: adjustData});
   setSynced(); updateTotals();
 }
-window.saveAdj=saveAdjToDb;
+window.saveAdj=window.saveAdjToDb;
 window.saveCarryToDb = async function(){
   if(!isAdmin) return;
   const key=getKharchaKey();
@@ -554,7 +553,6 @@ window.onAmountChange=function(){
 };
 function getBase(){ return currentCommonAmt; }
 
-// ── MEMBERS ──
 // ── NAAM-BASED LIST BUILDER ──
 function buildNamedList(key){
   const saved = colData[key] || [];
@@ -600,9 +598,7 @@ window.tickMember=async function(i){
 };
 
 // Custom amount input change - sirf local update, save tick par hoga
-window.onCustomAmtInput=function(i, val){
-  // Bas input field update hoga - tick karne par save hoga
-};
+window.onCustomAmtInput=function(i, val){};
 
 window.crossMember=async function(i){
   if(!isAdmin) return;
@@ -659,7 +655,7 @@ function renderMembers(){
     const isCustom = isCustomMember(m.name);
     const paidColor = isCustom ? 'color:#e67e22' : '';
     const sub=m.status==='paid'?`<span style="${paidColor}">✓ ₹${m.paid} diya</span> ${tagHtml}`:m.status==='unpaid'?`✗ Nahi diya ${tagHtml}`:`Expected ₹${base}`;
-    const customInp = isCustom && isAdmin ? `<input class="custom-amt-inp" type="number" 
+    const customInp = isCustom && isAdmin ? `<input class="custom-amt-inp" type="number"
       id="customAmt_${i}" placeholder="₹" value="${m.paid||''}"
       oninput="onCustomAmtInput(${i},this.value)"
       onclick="event.stopPropagation()" />` : '';
